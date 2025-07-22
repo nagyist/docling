@@ -287,7 +287,7 @@ class LayoutOptions(BaseModel):
     skip_cell_assignment: bool = (
         False  # Skip cell-to-cluster assignment for VLM-only processing
     )
-    model_spec: LayoutModelConfig = DOCLING_LAYOUT_V2
+    model_spec: LayoutModelConfig = DOCLING_LAYOUT_HERON
 
 
 class AsrPipelineOptions(PipelineOptions):
