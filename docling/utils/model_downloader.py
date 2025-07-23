@@ -4,6 +4,7 @@ from typing import Optional
 
 from docling.datamodel.layout_model_specs import DOCLING_LAYOUT_V2
 from docling.datamodel.pipeline_options import (
+    LayoutOptions,
     granite_picture_description,
     smolvlm_picture_description,
 )

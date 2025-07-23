@@ -91,7 +91,7 @@ class LayoutModel(BasePageModel):
         local_dir: Optional[Path] = None,
         force: bool = False,
         progress: bool = False,
-        layout_model_config: LayoutModelConfig = LayoutOptions().model_spec, # use default
+        layout_model_config: LayoutModelConfig = LayoutOptions().model_spec,  # use default
     ) -> Path:
         return download_hf_model(
             repo_id=layout_model_config.repo_id,
