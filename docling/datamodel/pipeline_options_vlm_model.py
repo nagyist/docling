@@ -20,6 +20,8 @@ class ResponseFormat(str, Enum):
     DOCTAGS = "doctags"
     MARKDOWN = "markdown"
     HTML = "html"
+    OTSL = "otsl"
+    PLAINTEXT = "plaintext"
 
 
 class InferenceFramework(str, Enum):

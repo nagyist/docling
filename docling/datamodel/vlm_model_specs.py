@@ -12,6 +12,7 @@ from docling.datamodel.pipeline_options_vlm_model import (
     InlineVlmOptions,
     ResponseFormat,
     TransformersModelType,
+    TransformersPromptStyle,
 )
 
 _log = logging.getLogger(__name__)
@@ -135,6 +136,23 @@ GEMMA3_27B_MLX = InlineVlmOptions(
     supported_devices=[AcceleratorDevice.MPS],
     scale=2.0,
     temperature=0.0,
+)
+
+DOLPHIN_TRANSFORMERS = InlineVlmOptions(
+    repo_id="ByteDance/Dolphin",
+    prompt="<s>Read text in the image. <Answer/>",
+    response_format=ResponseFormat.MARKDOWN,
+    inference_framework=InferenceFramework.TRANSFORMERS,
+    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
+    transformers_prompt_style=TransformersPromptStyle.RAW,
+    supported_devices=[
+        AcceleratorDevice.CUDA,
+        AcceleratorDevice.CPU,
+        AcceleratorDevice.MPS,
+    ],
+    scale=2.0,
+    temperature=0.0,
+    max_new_tokens=4096,
 )
 
 

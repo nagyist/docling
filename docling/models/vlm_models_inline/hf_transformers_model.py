@@ -274,7 +274,7 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             **inputs,
             max_new_tokens=self.max_new_tokens,
             use_cache=self.use_cache,
-            temperature=self.temperature,
+            # temperature=self.temperature,
             generation_config=self.generation_config,
             **self.vlm_options.extra_generation_config,
         )

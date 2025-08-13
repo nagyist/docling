@@ -49,6 +49,7 @@ class BaseVlmPageModel(BasePageModel, BaseVlmModel):
     processes them using process_images, and attaches results back to pages.
     """
 
+    @abstractmethod
     def __call__(
         self, conv_res: ConversionResult, page_batch: Iterable[Page]
     ) -> Iterable[Page]:
