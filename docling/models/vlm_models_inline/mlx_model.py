@@ -1,8 +1,12 @@
 import logging
+import threading
 import time
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
+
+import numpy as np
+from PIL.Image import Image
 
 from docling.datamodel.accelerator_options import (
     AcceleratorOptions,
@@ -10,7 +14,7 @@ from docling.datamodel.accelerator_options import (
 from docling.datamodel.base_models import Page, VlmPrediction, VlmPredictionToken
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options_vlm_model import InlineVlmOptions
-from docling.models.base_model import BasePageModel
+from docling.models.base_model import BaseVlmPageModel
 from docling.models.utils.hf_model_download import (
     HuggingFaceModelDownloadMixin,
 )
@@ -18,8 +22,12 @@ from docling.utils.profiling import TimeRecorder
 
 _log = logging.getLogger(__name__)
 
+# Global lock for MLX model calls - MLX models are not thread-safe
+# All MLX models share this lock to prevent concurrent MLX operations
+_MLX_GLOBAL_LOCK = threading.Lock()
 
-class HuggingFaceMlxModel(BasePageModel, HuggingFaceModelDownloadMixin):
+
+class HuggingFaceMlxModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
     def __init__(
         self,
         enabled: bool,
@@ -92,51 +100,57 @@ class HuggingFaceMlxModel(BasePageModel, HuggingFaceModelDownloadMixin):
                         self.processor, self.config, user_prompt, num_images=1
                     )
 
-                    start_time = time.time()
-                    _log.debug("start generating ...")
+                    # MLX models are not thread-safe - use global lock to serialize access
+                    with _MLX_GLOBAL_LOCK:
+                        _log.debug(
+                            "MLX model: Acquired global lock for __call__ method"
+                        )
+                        start_time = time.time()
+                        _log.debug("start generating ...")
 
-                    # Call model to generate:
-                    tokens: list[VlmPredictionToken] = []
+                        # Call model to generate:
+                        tokens: list[VlmPredictionToken] = []
 
-                    output = ""
-                    for token in self.stream_generate(
-                        self.vlm_model,
-                        self.processor,
-                        prompt,
-                        [hi_res_image],
-                        max_tokens=self.max_tokens,
-                        verbose=False,
-                        temp=self.temperature,
-                    ):
-                        if len(token.logprobs.shape) == 1:
-                            tokens.append(
-                                VlmPredictionToken(
-                                    text=token.text,
-                                    token=token.token,
-                                    logprob=token.logprobs[token.token],
-                                )
-                            )
-                        elif (
-                            len(token.logprobs.shape) == 2
-                            and token.logprobs.shape[0] == 1
+                        output = ""
+                        for token in self.stream_generate(
+                            self.vlm_model,
+                            self.processor,
+                            prompt,
+                            [hi_res_image],
+                            max_tokens=self.max_tokens,
+                            verbose=False,
+                            temp=self.temperature,
                         ):
-                            tokens.append(
-                                VlmPredictionToken(
-                                    text=token.text,
-                                    token=token.token,
-                                    logprob=token.logprobs[0, token.token],
+                            if len(token.logprobs.shape) == 1:
+                                tokens.append(
+                                    VlmPredictionToken(
+                                        text=token.text,
+                                        token=token.token,
+                                        logprob=token.logprobs[token.token],
+                                    )
                                 )
-                            )
-                        else:
-                            _log.warning(
-                                f"incompatible shape for logprobs: {token.logprobs.shape}"
-                            )
+                            elif (
+                                len(token.logprobs.shape) == 2
+                                and token.logprobs.shape[0] == 1
+                            ):
+                                tokens.append(
+                                    VlmPredictionToken(
+                                        text=token.text,
+                                        token=token.token,
+                                        logprob=token.logprobs[0, token.token],
+                                    )
+                                )
+                            else:
+                                _log.warning(
+                                    f"incompatible shape for logprobs: {token.logprobs.shape}"
+                                )
 
-                        output += token.text
-                        if "</doctag>" in token.text:
-                            break
+                            output += token.text
+                            if "</doctag>" in token.text:
+                                break
 
-                    generation_time = time.time() - start_time
+                        generation_time = time.time() - start_time
+                        _log.debug("MLX model: Released global lock")
                     page_tags = output
 
                     _log.debug(
@@ -149,3 +163,82 @@ class HuggingFaceMlxModel(BasePageModel, HuggingFaceModelDownloadMixin):
                     )
 
                 yield page
+
+    def process_images(
+        self,
+        image_batch: Iterable[Union[Image, np.ndarray]],
+        prompt: Optional[str] = None,
+    ) -> Iterable[VlmPrediction]:
+        from mlx_vlm import generate
+
+        # MLX models are not thread-safe - use global lock to serialize access
+        with _MLX_GLOBAL_LOCK:
+            _log.debug("MLX model: Acquired global lock for thread safety")
+            for image in image_batch:
+                # Convert numpy array to PIL Image if needed
+                if isinstance(image, np.ndarray):
+                    if image.ndim == 3 and image.shape[2] in [3, 4]:
+                        # RGB or RGBA array
+                        from PIL import Image as PILImage
+
+                        image = PILImage.fromarray(image.astype(np.uint8))
+                    elif image.ndim == 2:
+                        # Grayscale array
+                        from PIL import Image as PILImage
+
+                        image = PILImage.fromarray(image.astype(np.uint8), mode="L")
+                    else:
+                        raise ValueError(
+                            f"Unsupported numpy array shape: {image.shape}"
+                        )
+
+                # Ensure image is in RGB mode (handles RGBA, L, etc.)
+                if image.mode != "RGB":
+                    image = image.convert("RGB")
+
+                # Handle prompt with priority: parameter > vlm_options.prompt > error
+                if prompt is not None:
+                    user_prompt = prompt
+                elif not callable(self.vlm_options.prompt):
+                    user_prompt = self.vlm_options.prompt
+                else:
+                    raise ValueError(
+                        "vlm_options.prompt is callable but no prompt parameter provided to process_images. "
+                        "Please provide a prompt parameter when calling process_images directly."
+                    )
+
+                # Use the MLX chat template approach like in the __call__ method
+                formatted_prompt = self.apply_chat_template(
+                    self.processor, self.config, user_prompt, num_images=1
+                )
+
+                # Generate text from the image - MLX can accept PIL Images directly despite type annotations
+                start_time = time.time()
+                generated_result = generate(
+                    self.vlm_model,
+                    self.processor,
+                    formatted_prompt,
+                    image=image,  # Pass PIL Image directly - much more efficient than disk I/O
+                    verbose=False,
+                    temp=self.temperature,
+                    max_tokens=self.max_tokens,
+                )
+                generation_time = time.time() - start_time
+
+                # MLX generate returns a tuple (text, info_dict), extract just the text
+                if isinstance(generated_result, tuple):
+                    generated_text = generated_result[0]
+                    _log.debug(
+                        f"MLX generate returned tuple with additional info: {generated_result[1] if len(generated_result) > 1 else 'N/A'}"
+                    )
+                else:
+                    generated_text = generated_result
+
+                _log.debug(f"Generated text in {generation_time:.2f}s.")
+                yield VlmPrediction(
+                    text=generated_text,
+                    generation_time=generation_time,
+                    # MLX generate doesn't expose tokens directly, so we leave it empty
+                    generated_tokens=[],
+                )
+            _log.debug("MLX model: Released global lock")
