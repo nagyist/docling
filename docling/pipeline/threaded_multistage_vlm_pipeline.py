@@ -366,8 +366,6 @@ class VlmProcessingStage(ThreadedPipelineStage):
         one output item (success, empty, or failed). Non-cluster payloads are ignored.
         """
 
-        print("VLM stage: ", self.task_name)
-
         groups: dict[int, list[ThreadedItem]] = defaultdict(list)
         for itm in batch:
             if (
@@ -455,8 +453,6 @@ class VlmProcessingStage(ThreadedPipelineStage):
 
         # 3. Interpret predictions back into page/cluster structures
         predictions_list: List[VlmPrediction] = list(vlm_predictions)
-
-        print("Predictions: ", predictions_list)
 
         for i, (item, prediction) in enumerate(zip(item_mapping, predictions_list)):
             assert item.payload is not None
