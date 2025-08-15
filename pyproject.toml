@@ -255,6 +255,7 @@ module = [
   "huggingface_hub.*",
   "transformers.*",
   "pylatexenc.*",
+  "vllm.*",
 ]
 ignore_missing_imports = true
 

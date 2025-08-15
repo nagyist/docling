@@ -103,6 +103,17 @@ class VlmPipeline(PaginatedPipeline):
                         vlm_options=vlm_options,
                     ),
                 ]
+            elif vlm_options.inference_framework == InferenceFramework.VLLM:
+                from docling.models.vlm_models_inline.vllm_model import VllmVlmModel
+
+                self.build_pipe = [
+                    VllmVlmModel(
+                        enabled=True,  # must be always enabled for this pipeline to make sense.
+                        artifacts_path=artifacts_path,
+                        accelerator_options=pipeline_options.accelerator_options,
+                        vlm_options=vlm_options,
+                    ),
+                ]
             else:
                 raise ValueError(
                     f"Could not instantiate the right type of VLM pipeline: {vlm_options.inference_framework}"

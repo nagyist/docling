@@ -693,6 +693,17 @@ class ThreadedMultiStageVlmPipeline(BasePipeline):
                             accelerator_options=self.pipeline_options.accelerator_options,
                             vlm_options=vlm_options,
                         )
+                    elif vlm_options.inference_framework == InferenceFramework.VLLM:
+                        from docling.models.vlm_models_inline.vllm_model import (
+                            VllmVlmModel,
+                        )
+
+                        model = VllmVlmModel(
+                            enabled=True,
+                            artifacts_path=art_path,
+                            accelerator_options=self.pipeline_options.accelerator_options,
+                            vlm_options=vlm_options,
+                        )
                     else:
                         raise ValueError(
                             f"Unsupported inference framework: {vlm_options.inference_framework}"

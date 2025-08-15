@@ -71,110 +71,103 @@ class HuggingFaceMlxModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
     def __call__(
         self, conv_res: ConversionResult, page_batch: Iterable[Page]
     ) -> Iterable[Page]:
-        for page in page_batch:
+        page_list = list(page_batch)
+        if not page_list:
+            return
+
+        valid_pages = []
+        invalid_pages = []
+
+        for page in page_list:
             assert page._backend is not None
             if not page._backend.is_valid():
-                yield page
+                invalid_pages.append(page)
             else:
-                with TimeRecorder(conv_res, f"vlm-mlx-{self.vlm_options.repo_id}"):
-                    assert page.size is not None
+                valid_pages.append(page)
 
+        # Process valid pages in batch
+        if valid_pages:
+            with TimeRecorder(conv_res, f"vlm-mlx-{self.vlm_options.repo_id}"):
+                # Prepare images and prompts for batch processing
+                images = []
+                user_prompts = []
+                pages_with_images = []
+
+                for page in valid_pages:
+                    assert page.size is not None
                     hi_res_image = page.get_image(
                         scale=self.vlm_options.scale, max_size=self.vlm_options.max_size
                     )
+
+                    # Only process pages with valid images
                     if hi_res_image is not None:
-                        im_width, im_height = hi_res_image.size
+                        images.append(hi_res_image)
 
-                    # populate page_tags with predicted doc tags
-                    page_tags = ""
+                        # Define prompt structure
+                        if callable(self.vlm_options.prompt):
+                            user_prompt = self.vlm_options.prompt(page.parsed_page)
+                        else:
+                            user_prompt = self.vlm_options.prompt
 
-                    if hi_res_image:
-                        if hi_res_image.mode != "RGB":
-                            hi_res_image = hi_res_image.convert("RGB")
+                        user_prompts.append(user_prompt)
+                        pages_with_images.append(page)
 
-                    if callable(self.vlm_options.prompt):
-                        user_prompt = self.vlm_options.prompt(page.parsed_page)
-                    else:
-                        user_prompt = self.vlm_options.prompt
-                    prompt = self.apply_chat_template(
-                        self.processor, self.config, user_prompt, num_images=1
-                    )
+                # Use process_images for the actual inference
+                if images:  # Only if we have valid images
+                    predictions = list(self.process_images(images, user_prompts))
 
-                    # MLX models are not thread-safe - use global lock to serialize access
-                    with _MLX_GLOBAL_LOCK:
-                        _log.debug(
-                            "MLX model: Acquired global lock for __call__ method"
-                        )
-                        start_time = time.time()
-                        _log.debug("start generating ...")
+                    # Attach results to pages
+                    for page, prediction in zip(pages_with_images, predictions):
+                        page.predictions.vlm_response = prediction
 
-                        # Call model to generate:
-                        tokens: list[VlmPredictionToken] = []
-
-                        output = ""
-                        for token in self.stream_generate(
-                            self.vlm_model,
-                            self.processor,
-                            prompt,
-                            [hi_res_image],
-                            max_tokens=self.max_tokens,
-                            verbose=False,
-                            temp=self.temperature,
-                        ):
-                            if len(token.logprobs.shape) == 1:
-                                tokens.append(
-                                    VlmPredictionToken(
-                                        text=token.text,
-                                        token=token.token,
-                                        logprob=token.logprobs[token.token],
-                                    )
-                                )
-                            elif (
-                                len(token.logprobs.shape) == 2
-                                and token.logprobs.shape[0] == 1
-                            ):
-                                tokens.append(
-                                    VlmPredictionToken(
-                                        text=token.text,
-                                        token=token.token,
-                                        logprob=token.logprobs[0, token.token],
-                                    )
-                                )
-                            else:
-                                _log.warning(
-                                    f"incompatible shape for logprobs: {token.logprobs.shape}"
-                                )
-
-                            output += token.text
-                            if "</doctag>" in token.text:
-                                break
-
-                        generation_time = time.time() - start_time
-                        _log.debug("MLX model: Released global lock")
-                    page_tags = output
-
-                    _log.debug(
-                        f"{generation_time:.2f} seconds for {len(tokens)} tokens ({len(tokens) / generation_time} tokens/sec)."
-                    )
-                    page.predictions.vlm_response = VlmPrediction(
-                        text=page_tags,
-                        generation_time=generation_time,
-                        generated_tokens=tokens,
-                    )
-
-                yield page
+        # Yield all pages (valid and invalid)
+        for page in invalid_pages:
+            yield page
+        for page in valid_pages:
+            yield page
 
     def process_images(
         self,
         image_batch: Iterable[Union[Image, np.ndarray]],
-        prompt: Optional[str] = None,
+        prompt: Union[str, list[str]],
     ) -> Iterable[VlmPrediction]:
+        """Process raw images without page metadata.
+
+        Args:
+            image_batch: Iterable of PIL Images or numpy arrays
+            prompt: Either:
+                - str: Single prompt used for all images
+                - list[str]: List of prompts (one per image, must match image count)
+
+        Raises:
+            ValueError: If prompt list length doesn't match image count.
+        """
         from mlx_vlm import generate
+
+        # Convert image batch to list for length validation
+        image_list = list(image_batch)
+
+        if len(image_list) == 0:
+            return
+
+        # Handle prompt parameter
+        if isinstance(prompt, str):
+            # Single prompt for all images
+            user_prompts = [prompt] * len(image_list)
+        elif isinstance(prompt, list):
+            # List of prompts (one per image)
+            if len(prompt) != len(image_list):
+                raise ValueError(
+                    f"Number of prompts ({len(prompt)}) must match number of images ({len(image_list)})"
+                )
+            user_prompts = prompt
+        else:
+            raise ValueError(f"prompt must be str or list[str], got {type(prompt)}")
 
         # MLX models are not thread-safe - use global lock to serialize access
         with _MLX_GLOBAL_LOCK:
             _log.debug("MLX model: Acquired global lock for thread safety")
-            for image in image_batch:
+            for image, user_prompt in zip(image_list, user_prompts):
                 # Convert numpy array to PIL Image if needed
                 if isinstance(image, np.ndarray):
                     if image.ndim == 3 and image.shape[2] in [3, 4]:
@@ -195,17 +188,6 @@ class HuggingFaceMlxModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
                 # Ensure image is in RGB mode (handles RGBA, L, etc.)
                 if image.mode != "RGB":
                     image = image.convert("RGB")
-
-                # Handle prompt with priority: parameter > vlm_options.prompt > error
-                if prompt is not None:
-                    user_prompt = prompt
-                elif not callable(self.vlm_options.prompt):
-                    user_prompt = self.vlm_options.prompt
-                else:
-                    raise ValueError(
-                        "vlm_options.prompt is callable but no prompt parameter provided to process_images. "
-                        "Please provide a prompt parameter when calling process_images directly."
-                    )
 
                 # Use the MLX chat template approach like in the __call__ method
                 formatted_prompt = self.apply_chat_template(

@@ -44,6 +44,20 @@ SMOLDOCLING_TRANSFORMERS = InlineVlmOptions(
     temperature=0.0,
 )
 
+SMOLDOCLING_VLLM = InlineVlmOptions(
+    repo_id="ds4sd/SmolDocling-256M-preview",
+    prompt="Convert this page to docling.",
+    response_format=ResponseFormat.DOCTAGS,
+    inference_framework=InferenceFramework.VLLM,
+    transformers_model_type=TransformersModelType.AUTOMODEL_VISION2SEQ,
+    supported_devices=[
+        AcceleratorDevice.CPU,
+        AcceleratorDevice.CUDA,
+    ],
+    scale=2.0,
+    temperature=0.0,
+)
+
 # GraniteVision
 GRANITE_VISION_TRANSFORMERS = InlineVlmOptions(
     repo_id="ibm-granite/granite-vision-3.2-2b",
@@ -55,6 +69,20 @@ GRANITE_VISION_TRANSFORMERS = InlineVlmOptions(
         AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
         AcceleratorDevice.MPS,
+    ],
+    scale=2.0,
+    temperature=0.0,
+)
+
+GRANITE_VISION_VLLM = InlineVlmOptions(
+    repo_id="ibm-granite/granite-vision-3.2-2b",
+    prompt="Convert this page to markdown. Do not miss any text and only output the bare markdown!",
+    response_format=ResponseFormat.MARKDOWN,
+    inference_framework=InferenceFramework.VLLM,
+    transformers_model_type=TransformersModelType.AUTOMODEL_VISION2SEQ,
+    supported_devices=[
+        AcceleratorDevice.CPU,
+        AcceleratorDevice.CUDA,
     ],
     scale=2.0,
     temperature=0.0,
@@ -158,5 +186,7 @@ DOLPHIN_TRANSFORMERS = InlineVlmOptions(
 
 class VlmModelType(str, Enum):
     SMOLDOCLING = "smoldocling"
+    SMOLDOCLING_VLLM = "smoldocling_vllm"
     GRANITE_VISION = "granite_vision"
+    GRANITE_VISION_VLLM = "granite_vision_vllm"
     GRANITE_VISION_OLLAMA = "granite_vision_ollama"

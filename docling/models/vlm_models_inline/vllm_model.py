@@ -1,4 +1,3 @@
-import importlib.metadata
 import logging
 import time
 from collections.abc import Iterable
@@ -15,7 +14,6 @@ from docling.datamodel.base_models import Page, VlmPrediction
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options_vlm_model import (
     InlineVlmOptions,
-    TransformersModelType,
     TransformersPromptStyle,
 )
 from docling.models.base_model import BaseVlmPageModel
@@ -28,7 +26,7 @@ from docling.utils.profiling import TimeRecorder
 _log = logging.getLogger(__name__)
 
 
-class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
+class VllmVlmModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
     def __init__(
         self,
         enabled: bool,
@@ -41,25 +39,8 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
         self.vlm_options = vlm_options
 
         if self.enabled:
-            import torch
-            from transformers import (
-                AutoModel,
-                AutoModelForCausalLM,
-                AutoModelForImageTextToText,
-                AutoModelForVision2Seq,
-                AutoProcessor,
-                BitsAndBytesConfig,
-                GenerationConfig,
-            )
-
-            transformers_version = importlib.metadata.version("transformers")
-            if (
-                self.vlm_options.repo_id == "microsoft/Phi-4-multimodal-instruct"
-                and transformers_version >= "4.52.0"
-            ):
-                raise NotImplementedError(
-                    f"Phi 4 only works with transformers<4.52.0 but you have {transformers_version=}. Please downgrage running pip install -U 'transformers<4.52.0'."
-                )
+            from transformers import AutoProcessor
+            from vllm import LLM, SamplingParams
 
             self.device = decide_device(
                 accelerator_options.device,
@@ -67,7 +48,6 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             )
             _log.debug(f"Available device for VLM: {self.device}")
 
-            self.use_cache = vlm_options.use_kv_cache
             self.max_new_tokens = vlm_options.max_new_tokens
             self.temperature = vlm_options.temperature
 
@@ -78,49 +58,41 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             elif (artifacts_path / repo_cache_folder).exists():
                 artifacts_path = artifacts_path / repo_cache_folder
 
-            self.param_quantization_config: Optional[BitsAndBytesConfig] = None
+            # Initialize VLLM LLM
+            llm_kwargs = {
+                "model": str(artifacts_path),
+                "model_impl": "transformers",
+                "limit_mm_per_prompt": {"image": 1},
+                "trust_remote_code": vlm_options.trust_remote_code,
+            }
+
+            # Add device-specific configurations
+            if self.device.startswith("cuda"):
+                # VLLM automatically detects GPU
+                pass
+            elif self.device == "cpu":
+                llm_kwargs["device"] = "cpu"
+
+            # Add quantization if specified
             if vlm_options.quantized:
-                self.param_quantization_config = BitsAndBytesConfig(
-                    load_in_8bit=vlm_options.load_in_8bit,
-                    llm_int8_threshold=vlm_options.llm_int8_threshold,
-                )
+                if vlm_options.load_in_8bit:
+                    llm_kwargs["quantization"] = "bitsandbytes"
 
-            model_cls: Any = AutoModel
-            if (
-                self.vlm_options.transformers_model_type
-                == TransformersModelType.AUTOMODEL_CAUSALLM
-            ):
-                model_cls = AutoModelForCausalLM
-            elif (
-                self.vlm_options.transformers_model_type
-                == TransformersModelType.AUTOMODEL_VISION2SEQ
-            ):
-                model_cls = AutoModelForVision2Seq
-            elif (
-                self.vlm_options.transformers_model_type
-                == TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT
-            ):
-                model_cls = AutoModelForImageTextToText
+            self.llm = LLM(**llm_kwargs)
 
+            # Initialize processor for prompt formatting
             self.processor = AutoProcessor.from_pretrained(
                 artifacts_path,
                 trust_remote_code=vlm_options.trust_remote_code,
             )
-            self.vlm_model = model_cls.from_pretrained(
-                artifacts_path,
-                device_map=self.device,
-                torch_dtype=self.vlm_options.torch_dtype,
-                _attn_implementation=(
-                    "flash_attention_2"
-                    if self.device.startswith("cuda")
-                    and accelerator_options.cuda_use_flash_attention2
-                    else "eager"
-                ),
-                trust_remote_code=vlm_options.trust_remote_code,
-            )
 
-            # Load generation config
-            self.generation_config = GenerationConfig.from_pretrained(artifacts_path)
+            # Set up sampling parameters
+            self.sampling_params = SamplingParams(
+                temperature=self.temperature,
+                max_tokens=self.max_new_tokens,
+                stop=vlm_options.stop_strings if vlm_options.stop_strings else None,
+                **vlm_options.extra_generation_config,
+            )
 
     def __call__(
         self, conv_res: ConversionResult, page_batch: Iterable[Page]
@@ -188,13 +160,12 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
 
         elif self.vlm_options.repo_id == "microsoft/Phi-4-multimodal-instruct":
             _log.debug("Using specialized prompt for Phi-4")
-            # more info here: https://huggingface.co/microsoft/Phi-4-multimodal-instruct#loading-the-model-locally
-
-            user_prompt = "<|user|>"
+            # Note: This might need adjustment for VLLM vs transformers
+            user_prompt_prefix = "<|user|>"
             assistant_prompt = "<|assistant|>"
             prompt_suffix = "<|end|>"
 
-            prompt = f"{user_prompt}<|image_1|>{user_prompt}{prompt_suffix}{assistant_prompt}"
+            prompt = f"{user_prompt_prefix}<|image_1|>{user_prompt}{prompt_suffix}{assistant_prompt}"
             _log.debug(f"prompt for {self.vlm_options.repo_id}: {prompt}")
 
             return prompt
@@ -214,12 +185,12 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
                 }
             ]
             prompt = self.processor.apply_chat_template(
-                messages, add_generation_prompt=False
+                messages, tokenize=False, add_generation_prompt=True
             )
             return prompt
 
         raise RuntimeError(
-            f"Uknown prompt style `{self.vlm_options.transformers_prompt_style}`. Valid values are {', '.join(s.value for s in TransformersPromptStyle)}."
+            f"Unknown prompt style `{self.vlm_options.transformers_prompt_style}`. Valid values are {', '.join(s.value for s in TransformersPromptStyle)}."
         )
 
     def process_images(
@@ -284,53 +255,23 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             self.formulate_prompt(user_prompt) for user_prompt in user_prompts
         ]
 
-        inputs = self.processor(
-            text=prompts, images=pil_images, return_tensors="pt", padding=True
-        ).to(self.device)
+        # Prepare VLLM inputs
+        llm_inputs = []
+        for prompt, image in zip(prompts, pil_images):
+            llm_inputs.append({"prompt": prompt, "multi_modal_data": {"image": image}})
 
         start_time = time.time()
-        generated_ids = self.vlm_model.generate(
-            **inputs,
-            max_new_tokens=self.max_new_tokens,
-            use_cache=self.use_cache,
-            # temperature=self.temperature,
-            generation_config=self.generation_config,
-            **self.vlm_options.extra_generation_config,
-        )
+        outputs = self.llm.generate(llm_inputs, sampling_params=self.sampling_params)
         generation_time = time.time() - start_time
 
-        # Determine per-sample prompt lengths
-        try:
-            attention_mask = inputs["attention_mask"]
-            input_lengths: list[int] = attention_mask.sum(dim=1).tolist()
-        except KeyError:
-            tokenizer = (
-                self.processor.tokenizer
-            )  # Expect tokenizer to be present when text is provided
-            pad_token_id = tokenizer.pad_token_id
-            if pad_token_id is not None:
-                input_lengths = (
-                    (inputs["input_ids"] != pad_token_id).sum(dim=1).tolist()
-                )
-            else:
-                # Fallback: assume uniform prompt length (least accurate but preserves execution)
-                uniform_len = int(inputs["input_ids"].shape[1])
-                input_lengths = [uniform_len] * int(inputs["input_ids"].shape[0])
-
-        trimmed_sequences: list[list[int]] = [
-            generated_ids[i, int(input_lengths[i]) :].tolist()
-            for i in range(generated_ids.shape[0])
-        ]
-        decoded_texts: list[str] = self.processor.batch_decode(
-            trimmed_sequences, skip_special_tokens=True
-        )
-
         # Logging tokens count for the first sample as a representative metric
-        if generated_ids.shape[0] > 0:
-            num_tokens = int(generated_ids[0].shape[0])
+        if len(outputs) > 0:
+            num_tokens = len(outputs[0].outputs[0].token_ids)
             _log.debug(
                 f"Generated {num_tokens} tokens in time {generation_time:.2f} seconds."
             )
 
-        for text in decoded_texts:
-            yield VlmPrediction(text=text, generation_time=generation_time)
+        for output in outputs:
+            yield VlmPrediction(
+                text=output.outputs[0].text, generation_time=generation_time
+            )

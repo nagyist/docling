@@ -37,9 +37,21 @@ class BaseVlmModel(ABC):
 
     @abstractmethod
     def process_images(
-        self, image_batch: Iterable[Union[Image, np.ndarray]]
+        self,
+        image_batch: Iterable[Union[Image, np.ndarray]],
+        prompt: Union[str, list[str]],
     ) -> Iterable[VlmPrediction]:
-        """Process raw images without page metadata."""
+        """Process raw images without page metadata.
+
+        Args:
+            image_batch: Iterable of PIL Images or numpy arrays
+            prompt: Either:
+                - str: Single prompt used for all images
+                - list[str]: List of prompts (one per image, must match image count)
+
+        Raises:
+            ValueError: If prompt list length doesn't match image count.
+        """
 
 
 class BaseVlmPageModel(BasePageModel, BaseVlmModel):
@@ -54,23 +66,6 @@ class BaseVlmPageModel(BasePageModel, BaseVlmModel):
         self, conv_res: ConversionResult, page_batch: Iterable[Page]
     ) -> Iterable[Page]:
         """Extract images from pages, process them, and attach results back."""
-
-    @abstractmethod
-    def process_images(
-        self,
-        image_batch: Iterable[Union[Image, np.ndarray]],
-        prompt: Optional[str] = None,
-    ) -> Iterable[VlmPrediction]:
-        """Process raw images without page metadata.
-
-        Args:
-            image_batch: Iterable of PIL Images or numpy arrays
-            prompt: Optional prompt string. If None, uses vlm_options.prompt if it's a string.
-                   If vlm_options.prompt is callable and no prompt is provided, raises ValueError.
-
-        Raises:
-            ValueError: If vlm_options.prompt is callable and no prompt parameter is provided.
-        """
 
 
 EnrichElementT = TypeVar("EnrichElementT", default=NodeItem)

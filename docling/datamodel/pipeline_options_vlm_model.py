@@ -27,6 +27,7 @@ class ResponseFormat(str, Enum):
 class InferenceFramework(str, Enum):
     MLX = "mlx"
     TRANSFORMERS = "transformers"
+    VLLM = "vllm"
 
 
 class TransformersModelType(str, Enum):
