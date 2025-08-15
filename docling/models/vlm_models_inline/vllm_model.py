@@ -61,16 +61,15 @@ class VllmVlmModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
             # Initialize VLLM LLM
             llm_kwargs = {
                 "model": str(artifacts_path),
-                "model_impl": "transformers",
                 "limit_mm_per_prompt": {"image": 1},
                 "trust_remote_code": vlm_options.trust_remote_code,
+                "model_impl": "transformers",
+                "gpu_memory_utilization": 0.3,  # hardcoded for now, leaves room for ~3 different models.
             }
 
             # Add device-specific configurations
-            if self.device.startswith("cuda"):
-                # VLLM automatically detects GPU
-                pass
-            elif self.device == "cpu":
+
+            if self.device == "cpu":
                 llm_kwargs["device"] = "cpu"
 
             # Add quantization if specified

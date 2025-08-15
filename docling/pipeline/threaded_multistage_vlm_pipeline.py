@@ -55,6 +55,7 @@ from docling.datamodel.pipeline_options_vlm_model import (
 from docling.datamodel.settings import settings
 from docling.datamodel.vlm_model_specs import (
     DOLPHIN_TRANSFORMERS,
+    SMOLDOCLING_MLX,
     SMOLDOCLING_TRANSFORMERS,
 )
 from docling.models.layout_model import LayoutModel
@@ -152,13 +153,27 @@ class ThreadedMultiStageVlmPipelineOptions(PaginatedPipelineOptions):
         """Create default pipeline options with custom VLM configurations from example."""
 
         # Configure VLM options based on the custom pipeline example
-        formula_opts = DOLPHIN_TRANSFORMERS.model_copy()
-        formula_opts.prompt = "<s>Read text in the image. <Answer/>"
+        # formula_opts = DOLPHIN_TRANSFORMERS.model_copy()
+        # formula_opts.prompt = "<s>Read text in the image. <Answer/>"
 
-        text_opts = DOLPHIN_TRANSFORMERS.model_copy()
-        text_opts.prompt = "<s>Read text in the image. <Answer/>"
+        # text_opts = DOLPHIN_TRANSFORMERS.model_copy()
+        # text_opts.prompt = "<s>Read text in the image. <Answer/>"
 
-        table_opts = SMOLDOCLING_TRANSFORMERS.model_copy()
+        base_model = SMOLDOCLING_TRANSFORMERS
+
+        formula_opts = base_model.model_copy()
+        formula_opts.prompt = "Convert formula to latex."
+        formula_opts.response_format = ResponseFormat.OTSL
+
+        code_opts = base_model.model_copy()
+        code_opts.prompt = "Convert code to text."
+        code_opts.response_format = ResponseFormat.OTSL
+
+        text_opts = base_model.model_copy()
+        text_opts.prompt = "Convert this page to docling."
+        text_opts.response_format = ResponseFormat.OTSL
+
+        table_opts = base_model.model_copy()
         table_opts.prompt = "Convert this table to OTSL."
         table_opts.response_format = ResponseFormat.OTSL
 
@@ -175,6 +190,11 @@ class ThreadedMultiStageVlmPipelineOptions(PaginatedPipelineOptions):
                     labels=[DocItemLabel.FORMULA],
                     batch_size=16,
                 ),
+                "code": VlmTaskConfig(
+                    vlm_options=code_opts,
+                    labels=[DocItemLabel.CODE],
+                    batch_size=16,
+                ),
                 "text": VlmTaskConfig(
                     vlm_options=text_opts,
                     labels=[
@@ -189,7 +209,6 @@ class ThreadedMultiStageVlmPipelineOptions(PaginatedPipelineOptions):
                         DocItemLabel.CHECKBOX_SELECTED,
                         DocItemLabel.CHECKBOX_UNSELECTED,
                         DocItemLabel.HANDWRITTEN_TEXT,
-                        DocItemLabel.CODE,
                         DocItemLabel.EMPTY_VALUE,
                     ],
                     batch_size=16,
