@@ -142,8 +142,6 @@ class HuggingFaceMlxModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
         Raises:
             ValueError: If prompt list length doesn't match image count.
         """
-        from mlx_vlm import generate
-
         # Convert image batch to list for length validation
         image_list = list(image_batch)
 
@@ -194,33 +192,67 @@ class HuggingFaceMlxModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
                     self.processor, self.config, user_prompt, num_images=1
                 )
 
-                # Generate text from the image - MLX can accept PIL Images directly despite type annotations
+                # Stream generate with stop strings support
                 start_time = time.time()
-                generated_result = generate(
+                _log.debug("start generating ...")
+
+                tokens: list[VlmPredictionToken] = []
+                output = ""
+
+                # Use stream_generate for proper stop string handling
+                for token in self.stream_generate(
                     self.vlm_model,
                     self.processor,
                     formatted_prompt,
-                    image=image,  # Pass PIL Image directly - much more efficient than disk I/O
+                    [image],  # MLX stream_generate expects list of images
+                    max_tokens=self.max_tokens,
                     verbose=False,
                     temp=self.temperature,
-                    max_tokens=self.max_tokens,
-                )
+                ):
+                    # Collect token information
+                    if len(token.logprobs.shape) == 1:
+                        tokens.append(
+                            VlmPredictionToken(
+                                text=token.text,
+                                token=token.token,
+                                logprob=token.logprobs[token.token],
+                            )
+                        )
+                    elif (
+                        len(token.logprobs.shape) == 2 and token.logprobs.shape[0] == 1
+                    ):
+                        tokens.append(
+                            VlmPredictionToken(
+                                text=token.text,
+                                token=token.token,
+                                logprob=token.logprobs[0, token.token],
+                            )
+                        )
+                    else:
+                        _log.warning(
+                            f"incompatible shape for logprobs: {token.logprobs.shape}"
+                        )
+
+                    output += token.text
+
+                    # Check for any configured stop strings
+                    if self.vlm_options.stop_strings:
+                        if any(
+                            stop_str in output
+                            for stop_str in self.vlm_options.stop_strings
+                        ):
+                            _log.debug("Stopping generation due to stop string match")
+                            break
+
                 generation_time = time.time() - start_time
 
-                # MLX generate returns a tuple (text, info_dict), extract just the text
-                if isinstance(generated_result, tuple):
-                    generated_text = generated_result[0]
-                    _log.debug(
-                        f"MLX generate returned tuple with additional info: {generated_result[1] if len(generated_result) > 1 else 'N/A'}"
-                    )
-                else:
-                    generated_text = generated_result
+                _log.debug(
+                    f"{generation_time:.2f} seconds for {len(tokens)} tokens ({len(tokens) / generation_time:.1f} tokens/sec)."
+                )
 
-                _log.debug(f"Generated text in {generation_time:.2f}s.")
                 yield VlmPrediction(
-                    text=generated_text,
+                    text=output,
                     generation_time=generation_time,
-                    # MLX generate doesn't expose tokens directly, so we leave it empty
-                    generated_tokens=[],
+                    generated_tokens=tokens,
                 )
             _log.debug("MLX model: Released global lock")

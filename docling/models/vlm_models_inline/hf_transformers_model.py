@@ -7,6 +7,7 @@ from typing import Any, Optional, Union
 
 import numpy as np
 from PIL.Image import Image
+from transformers import StoppingCriteriaList, StopStringCriteria
 
 from docling.datamodel.accelerator_options import (
     AcceleratorOptions,
@@ -227,109 +228,119 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
         image_batch: Iterable[Union[Image, np.ndarray]],
         prompt: Union[str, list[str]],
     ) -> Iterable[VlmPrediction]:
-        """Process raw images without page metadata in a single batched inference call.
-
-        Args:
-            image_batch: Iterable of PIL Images or numpy arrays
-            prompt: Either:
-                - str: Single prompt used for all images
-                - list[str]: List of prompts (one per image, must match image count)
-
-        Raises:
-            ValueError: If prompt list length doesn't match image count.
         """
+        Batched inference for Hugging Face Image-Text-to-Text VLMs (e.g., SmolDocling / SmolVLM).
+        - Lets the processor handle all padding & batching for text+images.
+        - Trims generated sequences per row using attention_mask (no pad-id fallbacks).
+        - Keeps your formulate_prompt() exactly as-is.
+        """
+        import numpy as np
+        import torch
+        from PIL import Image as PILImage
+
+        # -- Normalize images to RGB PIL (SmolDocling & friends accept PIL/np via processor)
         pil_images: list[Image] = []
-
         for img in image_batch:
-            # Convert numpy array to PIL Image if needed
             if isinstance(img, np.ndarray):
-                if img.ndim == 3 and img.shape[2] in [3, 4]:
-                    from PIL import Image as PILImage
-
+                if img.ndim == 3 and img.shape[2] in (3, 4):
                     pil_img = PILImage.fromarray(img.astype(np.uint8))
                 elif img.ndim == 2:
-                    from PIL import Image as PILImage
-
                     pil_img = PILImage.fromarray(img.astype(np.uint8), mode="L")
                 else:
                     raise ValueError(f"Unsupported numpy array shape: {img.shape}")
             else:
                 pil_img = img
-
-            # Ensure image is in RGB mode (handles RGBA, L, etc.)
             if pil_img.mode != "RGB":
                 pil_img = pil_img.convert("RGB")
-
             pil_images.append(pil_img)
 
-        if len(pil_images) == 0:
+        if not pil_images:
             return
 
-        # Handle prompt parameter
+        # -- Normalize prompts (1 per image)
         if isinstance(prompt, str):
-            # Single prompt for all images
             user_prompts = [prompt] * len(pil_images)
-        elif isinstance(prompt, list):
-            # List of prompts (one per image)
+        else:
             if len(prompt) != len(pil_images):
                 raise ValueError(
                     f"Number of prompts ({len(prompt)}) must match number of images ({len(pil_images)})"
                 )
             user_prompts = prompt
-        else:
-            raise ValueError(f"prompt must be str or list[str], got {type(prompt)}")
 
-        # Format prompts individually
-        prompts: list[str] = [
-            self.formulate_prompt(user_prompt) for user_prompt in user_prompts
-        ]
+        # Use your prompt formatter verbatim
+        prompts: list[str] = [self.formulate_prompt(p) for p in user_prompts]
 
+        # -- Processor performs BOTH text+image preprocessing + batch padding (recommended)
         inputs = self.processor(
-            text=prompts, images=pil_images, return_tensors="pt", padding=True
-        ).to(self.device)
+            text=prompts,
+            images=pil_images,
+            return_tensors="pt",
+            padding=True,  # pad across batch for both text and vision
+            # no truncation by default; match SmolDocling examples
+        )
+        inputs = {
+            k: (v.to(self.device) if hasattr(v, "to") else v) for k, v in inputs.items()
+        }
+
+        # -- Optional stopping criteria
+        stopping_criteria = None
+        if self.vlm_options.stop_strings:
+            stopping_criteria = StoppingCriteriaList(
+                [
+                    StopStringCriteria(
+                        stop_strings=self.vlm_options.stop_strings,
+                        tokenizer=self.processor.tokenizer,
+                    )
+                ]
+            )
+
+        # -- Generate (Image-Text-to-Text class expects these inputs from processor)
+        gen_kwargs = {
+            **inputs,
+            "max_new_tokens": self.max_new_tokens,
+            "use_cache": self.use_cache,
+            "generation_config": self.generation_config,
+            "temperature": self.temperature,
+            **self.vlm_options.extra_generation_config,
+        }
+        if stopping_criteria is not None:
+            gen_kwargs["stopping_criteria"] = stopping_criteria
 
         start_time = time.time()
-        generated_ids = self.vlm_model.generate(
-            **inputs,
-            max_new_tokens=self.max_new_tokens,
-            use_cache=self.use_cache,
-            # temperature=self.temperature,
-            generation_config=self.generation_config,
-            **self.vlm_options.extra_generation_config,
-        )
+        with torch.no_grad():
+            generated_ids = self.vlm_model.generate(**gen_kwargs)
         generation_time = time.time() - start_time
 
-        # Determine per-sample prompt lengths
-        try:
-            attention_mask = inputs["attention_mask"]
-            input_lengths: list[int] = attention_mask.sum(dim=1).tolist()
-        except KeyError:
-            tokenizer = (
-                self.processor.tokenizer
-            )  # Expect tokenizer to be present when text is provided
-            pad_token_id = tokenizer.pad_token_id
-            if pad_token_id is not None:
-                input_lengths = (
-                    (inputs["input_ids"] != pad_token_id).sum(dim=1).tolist()
-                )
-            else:
-                # Fallback: assume uniform prompt length (least accurate but preserves execution)
-                uniform_len = int(inputs["input_ids"].shape[1])
-                input_lengths = [uniform_len] * int(inputs["input_ids"].shape[0])
+        # -- Trim per sample using attention_mask (robust for batched prompts)
+        if "attention_mask" not in inputs:
+            raise RuntimeError(
+                "Processor did not return 'attention_mask'. Ensure padding=True and text tokenization are enabled."
+            )
+        input_lengths = inputs["attention_mask"].sum(dim=1).tolist()
 
         trimmed_sequences: list[list[int]] = [
             generated_ids[i, int(input_lengths[i]) :].tolist()
             for i in range(generated_ids.shape[0])
         ]
-        decoded_texts: list[str] = self.processor.batch_decode(
+
+        # -- Decode with the processor/tokenizer (skip specials, keep DocTags as text)
+        decode_fn = getattr(self.processor, "batch_decode", None)
+        if decode_fn is None and getattr(self.processor, "tokenizer", None) is not None:
+            decode_fn = self.processor.tokenizer.batch_decode
+        if decode_fn is None:
+            raise RuntimeError(
+                "Neither processor.batch_decode nor tokenizer.batch_decode is available."
+            )
+
+        decoded_texts: list[str] = decode_fn(
             trimmed_sequences, skip_special_tokens=True
         )
 
-        # Logging tokens count for the first sample as a representative metric
+        # -- Optional logging
         if generated_ids.shape[0] > 0:
-            num_tokens = int(generated_ids[0].shape[0])
             _log.debug(
-                f"Generated {num_tokens} tokens in time {generation_time:.2f} seconds."
+                f"Generated {int(generated_ids[0].shape[0])} tokens in {generation_time:.2f}s "
+                f"for batch size {generated_ids.shape[0]}."
             )
 
         for text in decoded_texts:

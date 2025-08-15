@@ -27,6 +27,7 @@ SMOLDOCLING_MLX = InlineVlmOptions(
     supported_devices=[AcceleratorDevice.MPS],
     scale=2.0,
     temperature=0.0,
+    stop_strings=["</doctag>", "<end_of_utterance>"],
 )
 
 SMOLDOCLING_TRANSFORMERS = InlineVlmOptions(
@@ -42,6 +43,7 @@ SMOLDOCLING_TRANSFORMERS = InlineVlmOptions(
     ],
     scale=2.0,
     temperature=0.0,
+    stop_strings=["</doctag>", "<end_of_utterance>"],
 )
 
 SMOLDOCLING_VLLM = InlineVlmOptions(
@@ -56,7 +58,54 @@ SMOLDOCLING_VLLM = InlineVlmOptions(
     ],
     scale=2.0,
     temperature=0.0,
+    stop_strings=["</doctag>", "<end_of_utterance>"],
 )
+
+# SmolVLM-500-Instruct
+SMOLVLM500_TRANSFORMERS = InlineVlmOptions(
+    repo_id="HuggingFaceTB/SmolVLM-500M-Instruct",
+    prompt="Transcribe this image to plain text.",
+    response_format=ResponseFormat.DOCTAGS,
+    inference_framework=InferenceFramework.TRANSFORMERS,
+    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
+    supported_devices=[
+        AcceleratorDevice.CPU,
+        AcceleratorDevice.CUDA,
+        AcceleratorDevice.MPS,
+    ],
+    scale=2.0,
+    temperature=0.0,
+)
+
+# SmolVLM-500-Instruct
+SMOLVLM500_MLX = InlineVlmOptions(
+    repo_id="moot20/SmolVLM-500M-Instruct-MLX",
+    prompt="Transcribe this image to plain text.",
+    response_format=ResponseFormat.DOCTAGS,
+    inference_framework=InferenceFramework.MLX,
+    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
+    supported_devices=[
+        AcceleratorDevice.MPS,
+    ],
+    scale=2.0,
+    temperature=0.0,
+)
+
+SMOLVLM500_VLLM = InlineVlmOptions(
+    repo_id="HuggingFaceTB/SmolVLM-500M-Instruct",
+    prompt="Transcribe this image to plain text.",
+    response_format=ResponseFormat.DOCTAGS,
+    inference_framework=InferenceFramework.VLLM,
+    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
+    supported_devices=[
+        AcceleratorDevice.CPU,
+        AcceleratorDevice.CUDA,
+        AcceleratorDevice.MPS,
+    ],
+    scale=2.0,
+    temperature=0.0,
+)
+
 
 # GraniteVision
 GRANITE_VISION_TRANSFORMERS = InlineVlmOptions(
