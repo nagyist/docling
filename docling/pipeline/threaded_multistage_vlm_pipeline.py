@@ -161,7 +161,7 @@ class ThreadedMultiStageVlmPipelineOptions(PaginatedPipelineOptions):
         # text_opts = DOLPHIN_TRANSFORMERS.model_copy()
         # text_opts.prompt = "<s>Read text in the image. <Answer/>"
 
-        base_model = SMOLVLM500_TRANSFORMERS
+        base_model = SMOLVLM500_MLX
 
         text_opts = base_model.model_copy()
         # text_opts.prompt = "Convert this page to docling."
