@@ -270,16 +270,24 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             user_prompts = prompt
 
         # Use your prompt formatter verbatim
-        prompts: list[str] = [self.formulate_prompt(p) for p in user_prompts]
+        if self.vlm_options.transformers_prompt_style == TransformersPromptStyle.NONE:
+            inputs = self.processor(
+                pil_images,
+                return_tensors="pt",
+                padding=True,  # pad across batch for both text and vision
+                **self.vlm_options.extra_processor_kwargs,
+            )
+        else:
+            prompts: list[str] = [self.formulate_prompt(p) for p in user_prompts]
 
-        # -- Processor performs BOTH text+image preprocessing + batch padding (recommended)
-        inputs = self.processor(
-            text=prompts,
-            images=pil_images,
-            return_tensors="pt",
-            padding=True,  # pad across batch for both text and vision
-            # no truncation by default; match SmolDocling examples
-        )
+            # -- Processor performs BOTH text+image preprocessing + batch padding (recommended)
+            inputs = self.processor(
+                text=prompts,
+                images=pil_images,
+                return_tensors="pt",
+                padding=True,  # pad across batch for both text and vision
+                **self.vlm_options.extra_processor_kwargs,
+            )
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         # -- Optional stopping criteria

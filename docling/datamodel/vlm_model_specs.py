@@ -194,6 +194,26 @@ QWEN25_VL_3B_MLX = InlineVlmOptions(
     temperature=0.0,
 )
 
+# GoT 2.0
+GOT2_TRANSFORMERS = InlineVlmOptions(
+    repo_id="stepfun-ai/GOT-OCR-2.0-hf",
+    prompt="",
+    response_format=ResponseFormat.MARKDOWN,
+    inference_framework=InferenceFramework.TRANSFORMERS,
+    transformers_prompt_style=TransformersPromptStyle.NONE,
+    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
+    supported_devices=[
+        AcceleratorDevice.CPU,
+        AcceleratorDevice.CUDA,
+        #    AcceleratorDevice.MPS,
+    ],
+    scale=2.0,
+    temperature=0.0,
+    stop_strings=["<|im_end|>"],
+    extra_processor_kwargs={"format": True},
+)
+
+
 # Gemma-3
 GEMMA3_12B_MLX = InlineVlmOptions(
     repo_id="mlx-community/gemma-3-12b-it-bf16",
@@ -214,6 +234,8 @@ GEMMA3_27B_MLX = InlineVlmOptions(
     scale=2.0,
     temperature=0.0,
 )
+
+# Dolphin
 
 DOLPHIN_TRANSFORMERS = InlineVlmOptions(
     repo_id="ByteDance/Dolphin",
@@ -238,3 +260,4 @@ class VlmModelType(str, Enum):
     GRANITE_VISION = "granite_vision"
     GRANITE_VISION_VLLM = "granite_vision_vllm"
     GRANITE_VISION_OLLAMA = "granite_vision_ollama"
+    GOT_OCR_2 = "got_ocr_2"
