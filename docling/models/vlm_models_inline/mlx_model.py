@@ -250,8 +250,10 @@ class HuggingFaceMlxModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
                     f"{generation_time:.2f} seconds for {len(tokens)} tokens ({len(tokens) / generation_time:.1f} tokens/sec)."
                 )
 
+                # Apply decode_response to the output before yielding
+                decoded_output = self.vlm_options.decode_response(output)
                 yield VlmPrediction(
-                    text=output,
+                    text=decoded_output,
                     generation_time=generation_time,
                     generated_tokens=tokens,
                 )
