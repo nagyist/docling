@@ -280,9 +280,7 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             padding=True,  # pad across batch for both text and vision
             # no truncation by default; match SmolDocling examples
         )
-        inputs = {
-            k: (v.to(self.device) if hasattr(v, "to") else v) for k, v in inputs.items()
-        }
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         # -- Optional stopping criteria
         stopping_criteria = None
@@ -302,7 +300,7 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             "max_new_tokens": self.max_new_tokens,
             "use_cache": self.use_cache,
             "generation_config": self.generation_config,
-            "temperature": self.temperature,
+            # "temperature": self.temperature,
             **self.vlm_options.extra_generation_config,
         }
         if stopping_criteria is not None:

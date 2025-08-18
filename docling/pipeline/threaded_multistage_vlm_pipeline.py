@@ -160,16 +160,14 @@ class ThreadedMultiStageVlmPipelineOptions(PaginatedPipelineOptions):
         smoldocling_model = SMOLDOCLING_TRANSFORMERS
 
         text_opts = base_model.model_copy()
-        # text_opts.prompt = "Convert this page to docling."
-        text_opts.prompt = "What does it say?"
-        text_opts.response_format = ResponseFormat.PLAINTEXT
-        text_opts.max_new_tokens = 4096
+        text_opts.prompt = "Convert this page to docling."
+        text_opts.response_format = ResponseFormat.DOCTAGS
+        text_opts.max_new_tokens = 1024
 
         formula_opts = base_model.model_copy()
-        # formula_opts.prompt = "Convert formula to latex."
-        formula_opts.prompt = "What does it say?"
-        formula_opts.response_format = ResponseFormat.PLAINTEXT
-        formula_opts.max_new_tokens = 4096
+        formula_opts.prompt = "Convert formula to latex."
+        formula_opts.response_format = ResponseFormat.DOCTAGS
+        formula_opts.max_new_tokens = 512
 
         code_opts = smoldocling_model.model_copy()
         code_opts.prompt = "Convert code to text."

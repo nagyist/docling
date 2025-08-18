@@ -229,7 +229,6 @@ DOLPHIN_TRANSFORMERS = InlineVlmOptions(
     ],
     scale=2.0,
     temperature=0.0,
-    max_new_tokens=4096,
 )
 
 
