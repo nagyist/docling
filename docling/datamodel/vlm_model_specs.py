@@ -35,11 +35,11 @@ SMOLDOCLING_TRANSFORMERS = InlineVlmOptions(
     prompt="Convert this page to docling.",
     response_format=ResponseFormat.DOCTAGS,
     inference_framework=InferenceFramework.TRANSFORMERS,
-    transformers_model_type=TransformersModelType.AUTOMODEL_VISION2SEQ,
+    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
     supported_devices=[
         AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
-        AcceleratorDevice.MPS,
+        #    AcceleratorDevice.MPS,
     ],
     scale=2.0,
     temperature=0.0,
@@ -51,7 +51,7 @@ SMOLDOCLING_VLLM = InlineVlmOptions(
     prompt="Convert this page to docling.",
     response_format=ResponseFormat.DOCTAGS,
     inference_framework=InferenceFramework.VLLM,
-    transformers_model_type=TransformersModelType.AUTOMODEL_VISION2SEQ,
+    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
     supported_devices=[
         AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
@@ -61,9 +61,9 @@ SMOLDOCLING_VLLM = InlineVlmOptions(
     stop_strings=["</doctag>", "<end_of_utterance>"],
 )
 
-# SmolVLM-500-Instruct
-SMOLVLM500_TRANSFORMERS = InlineVlmOptions(
-    repo_id="HuggingFaceTB/SmolVLM-500M-Instruct",
+# SmolVLM-256M-Instruct
+SMOLVLM256_TRANSFORMERS = InlineVlmOptions(
+    repo_id="HuggingFaceTB/SmolVLM-256M-Instruct",
     prompt="Transcribe this image to plain text.",
     response_format=ResponseFormat.PLAINTEXT,
     inference_framework=InferenceFramework.TRANSFORMERS,
@@ -71,16 +71,16 @@ SMOLVLM500_TRANSFORMERS = InlineVlmOptions(
     supported_devices=[
         AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
-        AcceleratorDevice.MPS,
+        # AcceleratorDevice.MPS,
     ],
     scale=2.0,
     temperature=0.0,
 )
 
-# SmolVLM-500-Instruct
-SMOLVLM500_MLX = InlineVlmOptions(
-    repo_id="moot20/SmolVLM-500M-Instruct-MLX",
-    prompt="Transcribe this image to plain text.",
+# SmolVLM2-2.2b-Instruct
+SMOLVLM256_MLX = InlineVlmOptions(
+    repo_id="moot20/SmolVLM-256M-Instruct-MLX",
+    prompt="Extract the text.",
     response_format=ResponseFormat.DOCTAGS,
     inference_framework=InferenceFramework.MLX,
     transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
@@ -91,16 +91,16 @@ SMOLVLM500_MLX = InlineVlmOptions(
     temperature=0.0,
 )
 
-SMOLVLM500_VLLM = InlineVlmOptions(
-    repo_id="HuggingFaceTB/SmolVLM-500M-Instruct",
+SMOLVLM256_VLLM = InlineVlmOptions(
+    repo_id="HuggingFaceTB/SmolVLM-256M-Instruct",
     prompt="Transcribe this image to plain text.",
-    response_format=ResponseFormat.DOCTAGS,
+    response_format=ResponseFormat.PLAINTEXT,
     inference_framework=InferenceFramework.VLLM,
     transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
     supported_devices=[
         AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
-        AcceleratorDevice.MPS,
+        # AcceleratorDevice.MPS,
     ],
     scale=2.0,
     temperature=0.0,

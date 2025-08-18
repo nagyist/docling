@@ -107,6 +107,8 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
                 artifacts_path,
                 trust_remote_code=vlm_options.trust_remote_code,
             )
+            self.processor.tokenizer.padding_side = "left"
+
             self.vlm_model = model_cls.from_pretrained(
                 artifacts_path,
                 device_map=self.device,
@@ -215,7 +217,7 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
                 }
             ]
             prompt = self.processor.apply_chat_template(
-                messages, add_generation_prompt=False
+                messages, add_generation_prompt=True
             )
             return prompt
 
@@ -311,17 +313,8 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             generated_ids = self.vlm_model.generate(**gen_kwargs)
         generation_time = time.time() - start_time
 
-        # -- Trim per sample using attention_mask (robust for batched prompts)
-        if "attention_mask" not in inputs:
-            raise RuntimeError(
-                "Processor did not return 'attention_mask'. Ensure padding=True and text tokenization are enabled."
-            )
-        input_lengths = inputs["attention_mask"].sum(dim=1).tolist()
-
-        trimmed_sequences: list[list[int]] = [
-            generated_ids[i, int(input_lengths[i]) :].tolist()
-            for i in range(generated_ids.shape[0])
-        ]
+        input_len = inputs["input_ids"].shape[1]  # common right-aligned prompt length
+        trimmed_sequences = generated_ids[:, input_len:]  # only newly generated tokens
 
         # -- Decode with the processor/tokenizer (skip specials, keep DocTags as text)
         decode_fn = getattr(self.processor, "batch_decode", None)

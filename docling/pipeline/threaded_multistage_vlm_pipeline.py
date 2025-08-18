@@ -57,8 +57,6 @@ from docling.datamodel.vlm_model_specs import (
     DOLPHIN_TRANSFORMERS,
     SMOLDOCLING_MLX,
     SMOLDOCLING_TRANSFORMERS,
-    SMOLVLM500_MLX,
-    SMOLVLM500_TRANSFORMERS,
 )
 from docling.models.layout_model import LayoutModel
 from docling.models.page_assemble_model import PageAssembleModel, PageAssembleOptions
@@ -155,29 +153,29 @@ class ThreadedMultiStageVlmPipelineOptions(PaginatedPipelineOptions):
         """Create default pipeline options with custom VLM configurations from example."""
 
         # Configure VLM options based on the custom pipeline example
-        # formula_opts = DOLPHIN_TRANSFORMERS.model_copy()
-        # formula_opts.prompt = "<s>Read text in the image. <Answer/>"
+        # base_model = SMOLVLM256_TRANSFORMERS
+        # smoldocling_model = SMOLDOCLING_TRANSFORMERS
 
-        # text_opts = DOLPHIN_TRANSFORMERS.model_copy()
-        # text_opts.prompt = "<s>Read text in the image. <Answer/>"
-
-        base_model = SMOLVLM500_MLX
+        base_model = SMOLDOCLING_TRANSFORMERS
+        smoldocling_model = SMOLDOCLING_TRANSFORMERS
 
         text_opts = base_model.model_copy()
         # text_opts.prompt = "Convert this page to docling."
-        text_opts.prompt = "What does this say?"
+        text_opts.prompt = "What does it say?"
         text_opts.response_format = ResponseFormat.PLAINTEXT
+        text_opts.max_new_tokens = 4096
 
         formula_opts = base_model.model_copy()
         # formula_opts.prompt = "Convert formula to latex."
-        formula_opts.prompt = "What does this say?"
+        formula_opts.prompt = "What does it say?"
         formula_opts.response_format = ResponseFormat.PLAINTEXT
+        formula_opts.max_new_tokens = 4096
 
-        code_opts = SMOLDOCLING_TRANSFORMERS.model_copy()
+        code_opts = smoldocling_model.model_copy()
         code_opts.prompt = "Convert code to text."
         code_opts.response_format = ResponseFormat.DOCTAGS
 
-        table_opts = SMOLDOCLING_TRANSFORMERS.model_copy()
+        table_opts = smoldocling_model.model_copy()
         table_opts.prompt = "Convert this table to OTSL."
         table_opts.response_format = ResponseFormat.OTSL
 
