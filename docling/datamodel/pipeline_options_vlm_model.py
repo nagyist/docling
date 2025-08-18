@@ -46,6 +46,7 @@ class TransformersModelType(str, Enum):
 class TransformersPromptStyle(str, Enum):
     CHAT = "chat"
     RAW = "raw"
+    NONE = "none"
 
 
 class InlineVlmOptions(BaseVlmOptions):
