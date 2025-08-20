@@ -287,6 +287,7 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
                 return_tensors="pt",
                 padding=True,  # pad across batch for both text and vision
                 **self.vlm_options.extra_processor_kwargs,
+
             )
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
