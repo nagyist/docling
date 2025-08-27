@@ -9,7 +9,7 @@ from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.settings import settings
 
-DOC_FILE = "2203.01017v2.pdf"
+DOC_FILE = "doc.pdf"
 
 
 def main():
@@ -81,7 +81,7 @@ def main():
     # Export and save as json
     out_dir = args.work_dir / args.name
     out_dir.mkdir(parents=True, exist_ok=True)
-    save_fn = out_dir / "2305.03393v1-pg9.json"
+    save_fn = out_dir / "doc.json"
     print(f"Out dir: {out_dir}")
     with open(save_fn, "w") as fd:
        dd = doc.export_to_dict()
