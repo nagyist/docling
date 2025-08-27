@@ -85,7 +85,7 @@ def main():
     print(f"Out dir: {out_dir}")
     with open(save_fn, "w") as fd:
        dd = doc.export_to_dict()
-       json.dump(dd, fd)
+       json.dump(dd, fd, indent=2, sort_keys=True)
 
     # Move the debug dir
     debug_dir = Path("debug/")
