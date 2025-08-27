@@ -9,6 +9,8 @@ from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.settings import settings
 
+DOC_FILE = "2203.01017v2.pdf"
+
 
 def main():
     r""" """
@@ -35,7 +37,7 @@ def main():
     )
     args = parser.parse_args()
 
-    pdf_path = args.work_dir / "2305.03393v1-pg9.pdf"
+    pdf_path = args.work_dir / DOC_FILE
     print(f"Name: {args.name}")
     print(f"Input file: {pdf_path}")
 
