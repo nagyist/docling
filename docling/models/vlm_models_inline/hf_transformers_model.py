@@ -117,10 +117,11 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
                     "flash_attention_2"
                     if self.device.startswith("cuda")
                     and accelerator_options.cuda_use_flash_attention2
-                    else "eager"
+                    else "sdpa"
                 ),
                 trust_remote_code=vlm_options.trust_remote_code,
             )
+            self.vlm_model = torch.compile(self.vlm_model)  # type: ignore
 
             # Load generation config
             self.generation_config = GenerationConfig.from_pretrained(artifacts_path)
@@ -161,10 +162,7 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
                         images.append(hi_res_image)
 
                         # Define prompt structure
-                        if callable(self.vlm_options.prompt):
-                            user_prompt = self.vlm_options.prompt(page.parsed_page)
-                        else:
-                            user_prompt = self.vlm_options.prompt
+                        user_prompt = self.vlm_options.build_prompt(page.parsed_page)
 
                         user_prompts.append(user_prompt)
                         pages_with_images.append(page)
@@ -182,48 +180,6 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             yield page
         for page in valid_pages:
             yield page
-
-    def formulate_prompt(self, user_prompt: str) -> str:
-        """Formulate a prompt for the VLM."""
-
-        if self.vlm_options.transformers_prompt_style == TransformersPromptStyle.RAW:
-            return user_prompt
-
-        elif self.vlm_options.repo_id == "microsoft/Phi-4-multimodal-instruct":
-            _log.debug("Using specialized prompt for Phi-4")
-            # more info here: https://huggingface.co/microsoft/Phi-4-multimodal-instruct#loading-the-model-locally
-
-            user_prompt = "<|user|>"
-            assistant_prompt = "<|assistant|>"
-            prompt_suffix = "<|end|>"
-
-            prompt = f"{user_prompt}<|image_1|>{user_prompt}{prompt_suffix}{assistant_prompt}"
-            _log.debug(f"prompt for {self.vlm_options.repo_id}: {prompt}")
-
-            return prompt
-
-        elif self.vlm_options.transformers_prompt_style == TransformersPromptStyle.CHAT:
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "This is a page from a document.",
-                        },
-                        {"type": "image"},
-                        {"type": "text", "text": user_prompt},
-                    ],
-                }
-            ]
-            prompt = self.processor.apply_chat_template(
-                messages, add_generation_prompt=True
-            )
-            return prompt
-
-        raise RuntimeError(
-            f"Uknown prompt style `{self.vlm_options.transformers_prompt_style}`. Valid values are {', '.join(s.value for s in TransformersPromptStyle)}."
-        )
 
     def process_images(
         self,
@@ -287,7 +243,6 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
                 return_tensors="pt",
                 padding=True,  # pad across batch for both text and vision
                 **self.vlm_options.extra_processor_kwargs,
-
             )
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
@@ -309,14 +264,19 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             "max_new_tokens": self.max_new_tokens,
             "use_cache": self.use_cache,
             "generation_config": self.generation_config,
-            # "temperature": self.temperature,
             **self.vlm_options.extra_generation_config,
         }
+        if self.temperature > 0:
+            gen_kwargs["do_sample"] = True
+            gen_kwargs["temperature"] = self.temperature
+        else:
+            gen_kwargs["do_sample"] = False
+
         if stopping_criteria is not None:
             gen_kwargs["stopping_criteria"] = stopping_criteria
 
         start_time = time.time()
-        with torch.no_grad():
+        with torch.inference_mode():
             generated_ids = self.vlm_model.generate(**gen_kwargs)
         generation_time = time.time() - start_time
 
@@ -333,8 +293,13 @@ class HuggingFaceTransformersVlmModel(BaseVlmPageModel, HuggingFaceModelDownload
             )
 
         decoded_texts: list[str] = decode_fn(
-            trimmed_sequences, skip_special_tokens=True
+            trimmed_sequences, skip_special_tokens=False
         )
+
+        # -- Clip off pad tokens from decoded texts
+        pad_token = self.processor.tokenizer.pad_token
+        if pad_token:
+            decoded_texts = [text.rstrip(pad_token) for text in decoded_texts]
 
         # -- Optional logging
         if generated_ids.shape[0] > 0:

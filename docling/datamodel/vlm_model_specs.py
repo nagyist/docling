@@ -39,8 +39,8 @@ SMOLDOCLING_TRANSFORMERS = InlineVlmOptions(
     supported_devices=[
         AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
-        #    AcceleratorDevice.MPS,
     ],
+    torch_dtype="bfloat16",
     scale=2.0,
     temperature=0.0,
     stop_strings=["</doctag>", "<end_of_utterance>"],
@@ -51,9 +51,7 @@ SMOLDOCLING_VLLM = InlineVlmOptions(
     prompt="Convert this page to docling.",
     response_format=ResponseFormat.DOCTAGS,
     inference_framework=InferenceFramework.VLLM,
-    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
     supported_devices=[
-        AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
     ],
     scale=2.0,
@@ -73,6 +71,7 @@ SMOLVLM256_TRANSFORMERS = InlineVlmOptions(
         AcceleratorDevice.CUDA,
         # AcceleratorDevice.MPS,
     ],
+    torch_dtype="bfloat16",
     scale=2.0,
     temperature=0.0,
 )
@@ -96,11 +95,8 @@ SMOLVLM256_VLLM = InlineVlmOptions(
     prompt="Transcribe this image to plain text.",
     response_format=ResponseFormat.PLAINTEXT,
     inference_framework=InferenceFramework.VLLM,
-    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
     supported_devices=[
-        AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
-        # AcceleratorDevice.MPS,
     ],
     scale=2.0,
     temperature=0.0,
@@ -128,9 +124,7 @@ GRANITE_VISION_VLLM = InlineVlmOptions(
     prompt="Convert this page to markdown. Do not miss any text and only output the bare markdown!",
     response_format=ResponseFormat.MARKDOWN,
     inference_framework=InferenceFramework.VLLM,
-    transformers_model_type=TransformersModelType.AUTOMODEL_VISION2SEQ,
     supported_devices=[
-        AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
     ],
     scale=2.0,

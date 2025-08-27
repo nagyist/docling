@@ -2,7 +2,7 @@ import logging
 import time
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 from PIL.Image import Image
@@ -59,7 +59,7 @@ class VllmVlmModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
                 artifacts_path = artifacts_path / repo_cache_folder
 
             # Initialize VLLM LLM
-            llm_kwargs = {
+            llm_kwargs: Dict[str, Any] = {
                 "model": str(artifacts_path),
                 "limit_mm_per_prompt": {"image": 1},
                 "trust_remote_code": vlm_options.trust_remote_code,
@@ -151,47 +151,6 @@ class VllmVlmModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
         for page in valid_pages:
             yield page
 
-    def formulate_prompt(self, user_prompt: str) -> str:
-        """Formulate a prompt for the VLM."""
-
-        if self.vlm_options.transformers_prompt_style == TransformersPromptStyle.RAW:
-            return user_prompt
-
-        elif self.vlm_options.repo_id == "microsoft/Phi-4-multimodal-instruct":
-            _log.debug("Using specialized prompt for Phi-4")
-            # Note: This might need adjustment for VLLM vs transformers
-            user_prompt_prefix = "<|user|>"
-            assistant_prompt = "<|assistant|>"
-            prompt_suffix = "<|end|>"
-
-            prompt = f"{user_prompt_prefix}<|image_1|>{user_prompt}{prompt_suffix}{assistant_prompt}"
-            _log.debug(f"prompt for {self.vlm_options.repo_id}: {prompt}")
-
-            return prompt
-
-        elif self.vlm_options.transformers_prompt_style == TransformersPromptStyle.CHAT:
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "This is a page from a document.",
-                        },
-                        {"type": "image"},
-                        {"type": "text", "text": user_prompt},
-                    ],
-                }
-            ]
-            prompt = self.processor.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
-            return prompt
-
-        raise RuntimeError(
-            f"Unknown prompt style `{self.vlm_options.transformers_prompt_style}`. Valid values are {', '.join(s.value for s in TransformersPromptStyle)}."
-        )
-
     def process_images(
         self,
         image_batch: Iterable[Union[Image, np.ndarray]],
@@ -260,7 +219,7 @@ class VllmVlmModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
             llm_inputs.append({"prompt": prompt, "multi_modal_data": {"image": image}})
 
         start_time = time.time()
-        outputs = self.llm.generate(llm_inputs, sampling_params=self.sampling_params)
+        outputs = self.llm.generate(llm_inputs, sampling_params=self.sampling_params)  # type: ignore
         generation_time = time.time() - start_time
 
         # Logging tokens count for the first sample as a representative metric
@@ -271,6 +230,6 @@ class VllmVlmModel(BaseVlmPageModel, HuggingFaceModelDownloadMixin):
             )
 
         for output in outputs:
-            yield VlmPrediction(
-                text=output.outputs[0].text, generation_time=generation_time
-            )
+            # Apply decode_response to the output text
+            decoded_text = self.vlm_options.decode_response(output.outputs[0].text)
+            yield VlmPrediction(text=decoded_text, generation_time=generation_time)
