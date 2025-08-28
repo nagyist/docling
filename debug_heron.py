@@ -36,9 +36,10 @@ def main():
         help="Work directory"
     )
     args = parser.parse_args()
+    name = args.name
 
     pdf_path = args.work_dir / DOC_FILE
-    print(f"Name: {args.name}")
+    print(f"Name: {name}")
     print(f"Input file: {pdf_path}")
 
     # Enable debugging
@@ -79,9 +80,9 @@ def main():
     doc = doc_result.document
 
     # Export and save as json
-    out_dir = args.work_dir / args.name
+    out_dir = args.work_dir / name
     out_dir.mkdir(parents=True, exist_ok=True)
-    save_fn = out_dir / "doc.json"
+    save_fn = out_dir / f"{name}_doc.json"
     print(f"Out dir: {out_dir}")
     with open(save_fn, "w") as fd:
        dd = doc.export_to_dict()
@@ -100,8 +101,9 @@ def main():
     viz_imgs = doc.get_visualization()
     for page_no, img in viz_imgs.items():
         if page_no is not None:
-            img.save(out_dir / f"docling_p{page_no}.png")
+            img.save(out_dir / f"{name}_docling_p{page_no}.png")
 
 
 if __name__ == "__main__":
     main()
+
