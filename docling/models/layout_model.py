@@ -171,9 +171,12 @@ class LayoutModel(BasePageModel):
         batch_predictions = []
         if valid_page_images:
             with TimeRecorder(conv_res, "layout"):
-                batch_predictions = self.layout_predictor.predict_batch(  # type: ignore[attr-defined]
-                    valid_page_images
-                )
+                # batch_predictions = self.layout_predictor.predict_batch(  # type: ignore[attr-defined]
+                #     valid_page_images
+                # )
+                for vpi in valid_page_images:
+                    all_predictions = list(self.layout_predictor.predict(vpi))
+                    batch_predictions.append(all_predictions)
 
         # Process each page with its predictions
         valid_page_idx = 0
