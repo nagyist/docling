@@ -188,6 +188,11 @@ class LayoutModel(BasePageModel):
 
             clusters = []
             for ix, pred_item in enumerate(page_predictions):
+                #################################################################################
+                # Debug: Print the un-processed clusters
+                #
+                print(f"{ix}: Pred item: {pred_item}")
+                #################################################################################
                 label = DocItemLabel(
                     pred_item["label"].lower().replace(" ", "_").replace("-", "_")
                 )  # Temporary, until docling-ibm-model uses docling-core types
