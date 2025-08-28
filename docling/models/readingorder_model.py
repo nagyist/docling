@@ -56,21 +56,25 @@ class ReadingOrderModel:
             bbox = element.cluster.bbox.to_bottom_left_origin(page_height)
             text = element.text or ""
 
-            elements.append(
-                ReadingOrderPageElement(
-                    cid=len(elements),
-                    ref=RefItem(cref=f"#/{element.page_no}/{element.cluster.id}"),
-                    text=text,
-                    page_no=element.page_no,
-                    page_size=page_no_to_pages[element.page_no].size,
-                    label=element.label,
-                    l=bbox.l,
-                    r=bbox.r,
-                    b=bbox.b,
-                    t=bbox.t,
-                    coord_origin=bbox.coord_origin,
-                )
+            #################################################################################
+            # Debug
+            #
+            r = ReadingOrderPageElement(
+                cid=len(elements),
+                ref=RefItem(cref=f"#/{element.page_no}/{element.cluster.id}"),
+                text=text,
+                page_no=element.page_no,
+                page_size=page_no_to_pages[element.page_no].size,
+                label=element.label,
+                l=bbox.l,
+                r=bbox.r,
+                b=bbox.b,
+                t=bbox.t,
+                coord_origin=bbox.coord_origin,
             )
+            print(f"{r.cid}: [{r.l}, {r.b}, {r.r}, {r.t}] - {r.label} - {r.text}")
+            elements.append(r)
+            #################################################################################
 
         return elements
 
