@@ -205,11 +205,29 @@ class LayoutModel(BasePageModel):
                     conv_res, page, clusters, mode_prefix="raw"
                 )
 
+            #################################################################################
+            # Debug: Print the un-processed clusters
+            #
+            for i, cl in enumerate(clusters):
+                print(
+                    f"{i}: Cluster: {cl.id} | {cl.label} | {cl.bbox} | {cl.confidence}"
+                )
+            #################################################################################
+
             # Apply postprocessing
             processed_clusters, processed_cells = LayoutPostprocessor(
                 page, clusters, self.options
             ).postprocess()
             # Note: LayoutPostprocessor updates page.cells and page.parsed_page internally
+
+            #################################################################################
+            # Debug: Print the processed clusters
+            #
+            for i, cl in enumerate(processed_clusters):
+                print(
+                    f"{i}: Processed Cluster: {cl.id} | {cl.label} | {cl.bbox} | {cl.confidence}"
+                )
+            #################################################################################
 
             with warnings.catch_warnings():
                 warnings.filterwarnings(
