@@ -49,7 +49,7 @@ class DoclingParseV4PageBackend(PdfPageBackend):
             self._page_no + 1,
             keep_chars=False,
             keep_lines=False,
-            keep_bitmaps=False,
+            keep_bitmaps=True,
             create_words=self._create_words,
             create_textlines=self._create_textlines,
             enforce_same_font=False,
