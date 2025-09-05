@@ -24,10 +24,14 @@ GRANITEDOCLING_TRANSFORMERS = InlineVlmOptions(
     prompt="Convert this page to docling.",
     response_format=ResponseFormat.DOCTAGS,
     inference_framework=InferenceFramework.MLX,
-    supported_devices=[AcceleratorDevice.MPS],
+    supported_devices=[
+        AcceleratorDevice.CPU,
+        AcceleratorDevice.CUDA,
+    ],
     scale=2.0,
     temperature=0.0,
-    stop_strings=["</doctag>", "<end_of_utterance>"],
+    max_new_tokens=8192,
+    stop_strings=["</doctag>", "<|end_of_text|>"],
 )
 
 GRANITEDOCLING_MLX = InlineVlmOptions(
@@ -38,7 +42,8 @@ GRANITEDOCLING_MLX = InlineVlmOptions(
     supported_devices=[AcceleratorDevice.MPS],
     scale=2.0,
     temperature=0.0,
-    stop_strings=["</doctag>", "<end_of_utterance>"],
+    max_new_tokens=8192,
+    stop_strings=["</doctag>", "<|end_of_text|>"],
 )
 
 # SmolDocling
