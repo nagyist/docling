@@ -29,6 +29,7 @@ from docling.models.page_preprocessing_model import (
 from docling.models.picture_description_base_model import PictureDescriptionBaseModel
 from docling.models.readingorder_model import ReadingOrderModel, ReadingOrderOptions
 from docling.models.table_structure_model import TableStructureModel
+from docling.models.table_structure_model_vlm import TableStructureModelVlmMlx
 from docling.pipeline.base_pipeline import PaginatedPipeline
 from docling.utils.model_downloader import download_models
 from docling.utils.profiling import ProfilingScope, TimeRecorder
@@ -81,7 +82,8 @@ class StandardPdfPipeline(PaginatedPipeline):
                 options=pipeline_options.layout_options,
             ),
             # Table structure model
-            TableStructureModel(
+            # TableStructureModel(
+            TableStructureModelVlmMlx(
                 enabled=pipeline_options.do_table_structure,
                 artifacts_path=artifacts_path,
                 options=pipeline_options.table_structure_options,
