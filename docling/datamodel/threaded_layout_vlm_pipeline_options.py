@@ -1,0 +1,30 @@
+"""Options for the threaded layout+VLM pipeline."""
+
+from typing import Union
+
+from docling.datamodel.layout_model_specs import DOCLING_LAYOUT_HERON
+from docling.datamodel.pipeline_options import LayoutOptions, PaginatedPipelineOptions
+from docling.datamodel.pipeline_options_vlm_model import (
+    ApiVlmOptions,
+    InlineVlmOptions,
+)
+from docling.datamodel.vlm_model_specs import SMOLDOCLING_TRANSFORMERS
+
+
+class ThreadedLayoutVlmPipelineOptions(PaginatedPipelineOptions):
+    """Pipeline options for the threaded layout+VLM pipeline."""
+
+    # Inherit page image generation from PaginatedPipelineOptions but enable by default
+    generate_page_images: bool = True
+
+    # VLM configuration (will be enhanced with layout awareness by the pipeline)
+    vlm_options: Union[InlineVlmOptions, ApiVlmOptions] = SMOLDOCLING_TRANSFORMERS
+
+    # Layout model configuration
+    layout_options: LayoutOptions = LayoutOptions(model_spec=DOCLING_LAYOUT_HERON)
+
+    # Threading and batching controls
+    layout_batch_size: int = 4
+    vlm_batch_size: int = 2
+    batch_timeout_seconds: float = 2.0
+    queue_max_size: int = 50
