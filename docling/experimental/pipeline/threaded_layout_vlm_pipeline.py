@@ -26,7 +26,7 @@ from docling.datamodel.pipeline_options_vlm_model import (
     InlineVlmOptions,
 )
 from docling.datamodel.settings import settings
-from docling.datamodel.threaded_layout_vlm_pipeline_options import (
+from docling.experimental.datamodel.threaded_layout_vlm_pipeline_options import (
     ThreadedLayoutVlmPipelineOptions,
 )
 from docling.models.api_vlm_model import ApiVlmModel
@@ -86,17 +86,38 @@ class ThreadedLayoutVlmPipeline(BasePipeline):
 
                 # If we have a full Page object with layout predictions, enhance the prompt
                 if isinstance(page, Page) and page.predictions.layout:
-                    layout_info = []
-                    for cluster in page.predictions.layout.clusters:
-                        # TODO: Format the layout boxes as doctags tokens.
-                        bbox = cluster.bbox
-                        label = str(cluster.label)
-                        coord_str = f"{label}: ({bbox.l:.1f}, {bbox.t:.1f}, {bbox.r:.1f}, {bbox.b:.1f})"
-                        layout_info.append(coord_str)
+                    from docling_core.types.doc.tokens import DocumentToken
 
-                    if layout_info:
-                        layout_injection = (
-                            f"\n\\Layout elements: {'; '.join(layout_info)}"
+                    layout_elements = []
+                    for cluster in page.predictions.layout.clusters:
+                        # Get proper tag name from DocItemLabel
+                        tag_name = DocumentToken.create_token_name_from_doc_item_label(
+                            label=cluster.label
+                        )
+
+                        # Convert bbox to tuple and get location tokens
+                        bbox_tuple = cluster.bbox.as_tuple()
+                        location_tokens = DocumentToken.get_location(
+                            bbox=bbox_tuple,
+                            page_w=page.size.width,
+                            page_h=page.size.height,
+                            xsize=500,
+                            ysize=500,
+                        )
+
+                        # Create XML element with DocTags format
+                        xml_element = f"<{tag_name}>{location_tokens}</{tag_name}>"
+                        layout_elements.append(xml_element)
+
+                    if layout_elements:
+                        # Join elements with newlines and wrap in layout tags
+                        layout_xml = (
+                            "<layout>" + "\n".join(layout_elements) + "</layout>"
+                        )
+                        layout_injection = f"\n{layout_xml}"
+
+                        print(
+                            f"Layout injection prompt: {base_prompt + layout_injection}"
                         )
                         return base_prompt + layout_injection
 

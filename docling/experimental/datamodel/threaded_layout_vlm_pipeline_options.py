@@ -8,7 +8,7 @@ from docling.datamodel.pipeline_options_vlm_model import (
     ApiVlmOptions,
     InlineVlmOptions,
 )
-from docling.datamodel.vlm_model_specs import SMOLDOCLING_TRANSFORMERS
+from docling.datamodel.vlm_model_specs import SMOLDOCLING_MLX, SMOLDOCLING_TRANSFORMERS
 
 
 class ThreadedLayoutVlmPipelineOptions(PaginatedPipelineOptions):
@@ -16,12 +16,15 @@ class ThreadedLayoutVlmPipelineOptions(PaginatedPipelineOptions):
 
     # Inherit page image generation from PaginatedPipelineOptions but enable by default
     generate_page_images: bool = True
+    images_scale: float = 2.0
 
     # VLM configuration (will be enhanced with layout awareness by the pipeline)
-    vlm_options: Union[InlineVlmOptions, ApiVlmOptions] = SMOLDOCLING_TRANSFORMERS
+    vlm_options: Union[InlineVlmOptions, ApiVlmOptions] = SMOLDOCLING_MLX
 
     # Layout model configuration
-    layout_options: LayoutOptions = LayoutOptions(model_spec=DOCLING_LAYOUT_HERON)
+    layout_options: LayoutOptions = LayoutOptions(
+        model_spec=DOCLING_LAYOUT_HERON, skip_cell_assignment=True
+    )
 
     # Threading and batching controls
     layout_batch_size: int = 4
