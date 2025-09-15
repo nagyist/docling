@@ -1,3 +1,31 @@
+## [v2.52.0](https://github.com/docling-project/docling/releases/tag/v2.52.0) - 2025-09-11
+
+### Feature
+
+* Enrichment steps on all convert pipelines (incl docx, html, etc) ([#2251](https://github.com/docling-project/docling/issues/2251)) ([`2c91234`](https://github.com/docling-project/docling/commit/2c9123419f541feda8cc98c53aeb37288fabcaee))
+
+### Fix
+
+* Add missing features in ThreadedStandardPdfPipeline ([#2252](https://github.com/docling-project/docling/issues/2252)) ([`0700af2`](https://github.com/docling-project/docling/commit/0700af212cce8d90dbe0477dcb06d69370649e97))
+* Address deprecation warnings of dependencies ([#2237](https://github.com/docling-project/docling/issues/2237)) ([`c696549`](https://github.com/docling-project/docling/commit/c6965495a22703d0e35105b5daafcaaf8a8063d6))
+
+### Documentation
+
+* Add an example of RAG with OpenSearch ([#2238](https://github.com/docling-project/docling/issues/2238)) ([`f8cc545`](https://github.com/docling-project/docling/commit/f8cc545bab07e5fdd79bcff7042e9279e18926c6))
+* Add instructions for using Docling with MCP to README ([#2219](https://github.com/docling-project/docling/issues/2219)) ([`e5cd702`](https://github.com/docling-project/docling/commit/e5cd7020bd281aea63519db9a5332dd2dcca54b4))
+* Document VLM support requirement in extraction example ([#2231](https://github.com/docling-project/docling/issues/2231)) ([`55f5f37`](https://github.com/docling-project/docling/commit/55f5f3752f33f5b495cb2af5e6a3aee5d157fad8))
+
+## [v2.51.0](https://github.com/docling-project/docling/releases/tag/v2.51.0) - 2025-09-05
+
+### Feature
+
+* Updating default parameters to get better performance with docling-parse ([#2208](https://github.com/docling-project/docling/issues/2208)) ([`b49d1ad`](https://github.com/docling-project/docling/commit/b49d1ad4f1af6eeadc3f8d0e35123dc52c6e228e))
+* Updated the backend for new docling-parse ([#2187](https://github.com/docling-project/docling/issues/2187)) ([`b3d7542`](https://github.com/docling-project/docling/commit/b3d754206172d08d6d01f29f132dcb66383f955b))
+
+### Documentation
+
+* Add information extraction example ([#2199](https://github.com/docling-project/docling/issues/2199)) ([`a9f41b0`](https://github.com/docling-project/docling/commit/a9f41b088eae6f1ffe34d567057f80180f445a05))
+
 ## [v2.50.0](https://github.com/docling-project/docling/releases/tag/v2.50.0) - 2025-09-03
 
 ### Feature

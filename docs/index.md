@@ -30,13 +30,20 @@ Docling simplifies document processing, parsing diverse formats — including ad
 * 🔍 Extensive OCR support for scanned PDFs and images
 * 👓 Support of several Visual Language Models ([SmolDocling](https://huggingface.co/ds4sd/SmolDocling-256M-preview))
 * 🎙️  Support for Audio with Automatic Speech Recognition (ASR) models
+* 🔌 Connect to any agent using the [Docling MCP](https://docling-project.github.io/docling/usage/mcp/) server
 * 💻 Simple and convenient CLI
+
+### What's new
+* 📤 Structured [information extraction][extraction] \[🧪 beta\]
+* 📑 New layout model (**Heron**) by default, for faster PDF parsing
+* 🔌 [MCP server](https://docling-project.github.io/docling/usage/mcp/) for agentic applications
 
 ### Coming soon
 
 * 📝 Metadata extraction, including title, authors, references & language
 * 📝 Chart understanding (Barchart, Piechart, LinePlot, etc)
 * 📝 Complex chemistry understanding (Molecular structures)
+* 📝 Parsing of Web Video Text Tracks (WebVTT) files
 
 ## Get started
 
