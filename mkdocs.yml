@@ -83,7 +83,7 @@ nav:
       - "Custom conversion": examples/custom_convert.py
       - "Batch conversion": examples/batch_convert.py
       - "Multi-format conversion": examples/run_with_formats.py
-      - "VLM pipeline with SmolDocling": examples/minimal_vlm_pipeline.py
+      - "VLM pipeline with GraniteDocling": examples/minimal_vlm_pipeline.py
       - "VLM pipeline with remote model": examples/vlm_pipeline_api_model.py
       - "VLM comparison": examples/compare_vlm_models.py
       - "ASR pipeline with Whisper": examples/minimal_asr_pipeline.py
