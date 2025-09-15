@@ -336,7 +336,7 @@ def convert(  # noqa: C901
     vlm_model: Annotated[
         VlmModelType,
         typer.Option(..., help="Choose the VLM model to use with PDF or image files."),
-    ] = VlmModelType.SMOLDOCLING,
+    ] = VlmModelType.GRANITEDOCLING,
     asr_model: Annotated[
         AsrModelType,
         typer.Option(..., help="Choose the ASR model to use with audio/video files."),
