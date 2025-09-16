@@ -20,10 +20,14 @@ import itertools
 import logging
 import threading
 import time
+import warnings
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Iterable, List, Optional, Sequence, Tuple, cast
+
+import numpy as np
+from docling_core.types.doc import DocItem, ImageRef, PictureItem, TableItem
 
 from docling.backend.abstract_backend import AbstractDocumentBackend
 from docling.backend.pdf_backend import PdfDocumentBackend
@@ -32,21 +36,16 @@ from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options import ThreadedPdfPipelineOptions
 from docling.datamodel.settings import settings
 from docling.models.code_formula_model import CodeFormulaModel, CodeFormulaModelOptions
-from docling.models.document_picture_classifier import (
-    DocumentPictureClassifier,
-    DocumentPictureClassifierOptions,
-)
-from docling.models.factories import get_ocr_factory, get_picture_description_factory
+from docling.models.factories import get_ocr_factory
 from docling.models.layout_model import LayoutModel
 from docling.models.page_assemble_model import PageAssembleModel, PageAssembleOptions
 from docling.models.page_preprocessing_model import (
     PagePreprocessingModel,
     PagePreprocessingOptions,
 )
-from docling.models.picture_description_base_model import PictureDescriptionBaseModel
 from docling.models.readingorder_model import ReadingOrderModel, ReadingOrderOptions
 from docling.models.table_structure_model import TableStructureModel
-from docling.pipeline.base_pipeline import BasePipeline
+from docling.pipeline.base_pipeline import ConvertPipeline
 from docling.utils.profiling import ProfilingScope, TimeRecorder
 from docling.utils.utils import chunkify
 
@@ -294,7 +293,7 @@ class RunContext:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class ThreadedStandardPdfPipeline(BasePipeline):
+class ThreadedStandardPdfPipeline(ConvertPipeline):
     """High-performance PDF pipeline with multi-threaded stages."""
 
     def __init__(self, pipeline_options: ThreadedPdfPipelineOptions) -> None:
@@ -310,7 +309,7 @@ class ThreadedStandardPdfPipeline(BasePipeline):
     # ────────────────────────────────────────────────────────────────────────
 
     def _init_models(self) -> None:
-        art_path = self._resolve_artifacts_path()
+        art_path = self.artifacts_path
         self.keep_images = (
             self.pipeline_options.generate_page_images
             or self.pipeline_options.generate_picture_images
@@ -337,32 +336,20 @@ class ThreadedStandardPdfPipeline(BasePipeline):
         self.reading_order_model = ReadingOrderModel(options=ReadingOrderOptions())
 
         # --- optional enrichment ------------------------------------------------
-        self.enrichment_pipe = []
-        code_formula = CodeFormulaModel(
-            enabled=self.pipeline_options.do_code_enrichment
-            or self.pipeline_options.do_formula_enrichment,
-            artifacts_path=art_path,
-            options=CodeFormulaModelOptions(
-                do_code_enrichment=self.pipeline_options.do_code_enrichment,
-                do_formula_enrichment=self.pipeline_options.do_formula_enrichment,
+        self.enrichment_pipe = [
+            # Code Formula Enrichment Model
+            CodeFormulaModel(
+                enabled=self.pipeline_options.do_code_enrichment
+                or self.pipeline_options.do_formula_enrichment,
+                artifacts_path=self.artifacts_path,
+                options=CodeFormulaModelOptions(
+                    do_code_enrichment=self.pipeline_options.do_code_enrichment,
+                    do_formula_enrichment=self.pipeline_options.do_formula_enrichment,
+                ),
+                accelerator_options=self.pipeline_options.accelerator_options,
             ),
-            accelerator_options=self.pipeline_options.accelerator_options,
-        )
-        if code_formula.enabled:
-            self.enrichment_pipe.append(code_formula)
-
-        picture_classifier = DocumentPictureClassifier(
-            enabled=self.pipeline_options.do_picture_classification,
-            artifacts_path=art_path,
-            options=DocumentPictureClassifierOptions(),
-            accelerator_options=self.pipeline_options.accelerator_options,
-        )
-        if picture_classifier.enabled:
-            self.enrichment_pipe.append(picture_classifier)
-
-        picture_descr = self._make_picture_description_model(art_path)
-        if picture_descr and picture_descr.enabled:
-            self.enrichment_pipe.append(picture_descr)
+            *self.enrichment_pipe,
+        ]
 
         self.keep_backend = any(
             (
@@ -374,19 +361,6 @@ class ThreadedStandardPdfPipeline(BasePipeline):
         )
 
     # ---------------------------------------------------------------- helpers
-    def _resolve_artifacts_path(self) -> Optional[Path]:
-        if self.pipeline_options.artifacts_path:
-            p = Path(self.pipeline_options.artifacts_path).expanduser()
-        elif settings.artifacts_path:
-            p = Path(settings.artifacts_path).expanduser()
-        else:
-            return None
-        if not p.is_dir():
-            raise RuntimeError(
-                f"{p} does not exist or is not a directory containing the required models"
-            )
-        return p
-
     def _make_ocr_model(self, art_path: Optional[Path]) -> Any:
         factory = get_ocr_factory(
             allow_external_plugins=self.pipeline_options.allow_external_plugins
@@ -394,20 +368,6 @@ class ThreadedStandardPdfPipeline(BasePipeline):
         return factory.create_instance(
             options=self.pipeline_options.ocr_options,
             enabled=self.pipeline_options.do_ocr,
-            artifacts_path=art_path,
-            accelerator_options=self.pipeline_options.accelerator_options,
-        )
-
-    def _make_picture_description_model(
-        self, art_path: Optional[Path]
-    ) -> Optional[PictureDescriptionBaseModel]:
-        factory = get_picture_description_factory(
-            allow_external_plugins=self.pipeline_options.allow_external_plugins
-        )
-        return factory.create_instance(
-            options=self.pipeline_options.picture_description_options,
-            enabled=self.pipeline_options.do_picture_description,
-            enable_remote_services=self.pipeline_options.enable_remote_services,
             artifacts_path=art_path,
             accelerator_options=self.pipeline_options.accelerator_options,
         )
@@ -585,6 +545,86 @@ class ThreadedStandardPdfPipeline(BasePipeline):
                 elements=elements, headers=headers, body=body
             )
             conv_res.document = self.reading_order_model(conv_res)
+
+            # Generate page images in the output
+            if self.pipeline_options.generate_page_images:
+                for page in conv_res.pages:
+                    assert page.image is not None
+                    page_no = page.page_no + 1
+                    conv_res.document.pages[page_no].image = ImageRef.from_pil(
+                        page.image, dpi=int(72 * self.pipeline_options.images_scale)
+                    )
+
+            # Generate images of the requested element types
+            with warnings.catch_warnings():  # deprecated generate_table_images
+                warnings.filterwarnings("ignore", category=DeprecationWarning)
+                if (
+                    self.pipeline_options.generate_picture_images
+                    or self.pipeline_options.generate_table_images
+                ):
+                    scale = self.pipeline_options.images_scale
+                    for element, _level in conv_res.document.iterate_items():
+                        if not isinstance(element, DocItem) or len(element.prov) == 0:
+                            continue
+                        if (
+                            isinstance(element, PictureItem)
+                            and self.pipeline_options.generate_picture_images
+                        ) or (
+                            isinstance(element, TableItem)
+                            and self.pipeline_options.generate_table_images
+                        ):
+                            page_ix = element.prov[0].page_no - 1
+                            page = next(
+                                (p for p in conv_res.pages if p.page_no == page_ix),
+                                cast("Page", None),
+                            )
+                            assert page is not None
+                            assert page.size is not None
+                            assert page.image is not None
+
+                            crop_bbox = (
+                                element.prov[0]
+                                .bbox.scaled(scale=scale)
+                                .to_top_left_origin(
+                                    page_height=page.size.height * scale
+                                )
+                            )
+
+                            cropped_im = page.image.crop(crop_bbox.as_tuple())
+                            element.image = ImageRef.from_pil(
+                                cropped_im, dpi=int(72 * scale)
+                            )
+
+            # Aggregate confidence values for document:
+            if len(conv_res.pages) > 0:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        category=RuntimeWarning,
+                        message="Mean of empty slice|All-NaN slice encountered",
+                    )
+                    conv_res.confidence.layout_score = float(
+                        np.nanmean(
+                            [c.layout_score for c in conv_res.confidence.pages.values()]
+                        )
+                    )
+                    conv_res.confidence.parse_score = float(
+                        np.nanquantile(
+                            [c.parse_score for c in conv_res.confidence.pages.values()],
+                            q=0.1,  # parse score should relate to worst 10% of pages.
+                        )
+                    )
+                    conv_res.confidence.table_score = float(
+                        np.nanmean(
+                            [c.table_score for c in conv_res.confidence.pages.values()]
+                        )
+                    )
+                    conv_res.confidence.ocr_score = float(
+                        np.nanmean(
+                            [c.ocr_score for c in conv_res.confidence.pages.values()]
+                        )
+                    )
+
         return conv_res
 
     # ---------------------------------------------------------------- misc
