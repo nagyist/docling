@@ -32,7 +32,7 @@ from docling.pipeline.vlm_pipeline import VlmPipeline
 source = "https://arxiv.org/pdf/2501.17887"
 
 ###### USING SIMPLE DEFAULT VALUES
-# - SmolDocling model
+# - GraniteDocling model
 # - Using the transformers framework
 
 converter = DocumentConverter(
@@ -53,7 +53,7 @@ print(doc.export_to_markdown())
 # For more options see the `compare_vlm_models.py` example.
 
 pipeline_options = VlmPipelineOptions(
-    vlm_options=vlm_model_specs.SMOLDOCLING_MLX,
+    vlm_options=vlm_model_specs.GRANITEDOCLING_MLX,
 )
 
 converter = DocumentConverter(

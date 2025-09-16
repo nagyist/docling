@@ -12,7 +12,7 @@ from pydantic import (
 )
 from typing_extensions import deprecated
 
-from docling.datamodel import asr_model_specs
+from docling.datamodel import asr_model_specs, vlm_model_specs
 
 # Import the following for backwards compatibility
 from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
@@ -290,7 +290,7 @@ class VlmPipelineOptions(PaginatedPipelineOptions):
     )
     # If True, text from backend will be used instead of generated text
     vlm_options: Union[InlineVlmOptions, ApiVlmOptions] = (
-        smoldocling_vlm_conversion_options
+        vlm_model_specs.GRANITEDOCLING_TRANSFORMERS
     )
 
 
