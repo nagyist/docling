@@ -23,7 +23,7 @@ GRANITEDOCLING_TRANSFORMERS = InlineVlmOptions(
     repo_id="ibm-granite/granite-docling-258M",
     prompt="Convert this page to docling.",
     response_format=ResponseFormat.DOCTAGS,
-    inference_framework=InferenceFramework.MLX,
+    inference_framework=InferenceFramework.TRANSFORMERS,
     supported_devices=[
         AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,

@@ -1,6 +1,6 @@
 {
   "schema_name": "DoclingDocument",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "name": "ocr_test_rotated_90",
   "origin": {
     "mimetype": "application/pdf",
@@ -39,10 +39,10 @@
         {
           "page_no": 1,
           "bbox": {
-            "l": 77.1,
-            "t": 506.07,
-            "r": 126.08,
-            "b": 71.88,
+            "l": 78.0,
+            "t": 503.2,
+            "r": 123.33,
+            "b": 72.2,
             "coord_origin": "BOTTOMLEFT"
           },
           "charspan": [
@@ -53,10 +53,10 @@
         {
           "page_no": 1,
           "bbox": {
-            "l": 131.21,
-            "t": 154.19,
-            "r": 152.2,
-            "b": 74.12,
+            "l": 131.67,
+            "t": 150.53,
+            "r": 150.33,
+            "b": 73.53,
             "coord_origin": "BOTTOMLEFT"
           },
           "charspan": [
