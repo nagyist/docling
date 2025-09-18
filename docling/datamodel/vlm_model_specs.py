@@ -20,10 +20,11 @@ _log = logging.getLogger(__name__)
 
 # Granite-Docling
 GRANITEDOCLING_TRANSFORMERS = InlineVlmOptions(
-    repo_id="ds4sd/granite-docling-258m-2-9-2025-v2",
+    repo_id="ibm-granite/granite-docling-258M",
     prompt="Convert this page to docling.",
     response_format=ResponseFormat.DOCTAGS,
-    inference_framework=InferenceFramework.MLX,
+    inference_framework=InferenceFramework.TRANSFORMERS,
+    transformers_model_type=TransformersModelType.AUTOMODEL_IMAGETEXTTOTEXT,
     supported_devices=[
         AcceleratorDevice.CPU,
         AcceleratorDevice.CUDA,
@@ -35,7 +36,7 @@ GRANITEDOCLING_TRANSFORMERS = InlineVlmOptions(
 )
 
 GRANITEDOCLING_MLX = InlineVlmOptions(
-    repo_id="ds4sd/granite-docling-258m-2-9-2025-v2-mlx-bf16",
+    repo_id="ibm-granite/granite-docling-258M-mlx",
     prompt="Convert this page to docling.",
     response_format=ResponseFormat.DOCTAGS,
     inference_framework=InferenceFramework.MLX,

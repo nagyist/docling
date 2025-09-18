@@ -1,3 +1,35 @@
+## [v2.53.0](https://github.com/docling-project/docling/releases/tag/v2.53.0) - 2025-09-17
+
+### Feature
+
+* Add granite-docling model ([#2272](https://github.com/docling-project/docling/issues/2272)) ([`17afb66`](https://github.com/docling-project/docling/commit/17afb664d005168b5a6f12a2df4432076a9329bb))
+* **RapidOcr:** Support generic extra arguments for RapidOcr ([#2266](https://github.com/docling-project/docling/issues/2266)) ([`0e95171`](https://github.com/docling-project/docling/commit/0e95171dd64733ba52f2f0906642be24f6237977))
+
+### Fix
+
+* Handle empty result from RapidOCR to avoid crash ([#2264](https://github.com/docling-project/docling/issues/2264)) ([`609d902`](https://github.com/docling-project/docling/commit/609d902eef157ae68e33faa26d73533ef7a4a749))
+
+### Documentation
+
+* Describe examples ([#2262](https://github.com/docling-project/docling/issues/2262)) ([`ff351fd`](https://github.com/docling-project/docling/commit/ff351fd40c4b635133401e77dea89bec8cd0ca33))
+
+## [v2.52.0](https://github.com/docling-project/docling/releases/tag/v2.52.0) - 2025-09-11
+
+### Feature
+
+* Enrichment steps on all convert pipelines (incl docx, html, etc) ([#2251](https://github.com/docling-project/docling/issues/2251)) ([`2c91234`](https://github.com/docling-project/docling/commit/2c9123419f541feda8cc98c53aeb37288fabcaee))
+
+### Fix
+
+* Add missing features in ThreadedStandardPdfPipeline ([#2252](https://github.com/docling-project/docling/issues/2252)) ([`0700af2`](https://github.com/docling-project/docling/commit/0700af212cce8d90dbe0477dcb06d69370649e97))
+* Address deprecation warnings of dependencies ([#2237](https://github.com/docling-project/docling/issues/2237)) ([`c696549`](https://github.com/docling-project/docling/commit/c6965495a22703d0e35105b5daafcaaf8a8063d6))
+
+### Documentation
+
+* Add an example of RAG with OpenSearch ([#2238](https://github.com/docling-project/docling/issues/2238)) ([`f8cc545`](https://github.com/docling-project/docling/commit/f8cc545bab07e5fdd79bcff7042e9279e18926c6))
+* Add instructions for using Docling with MCP to README ([#2219](https://github.com/docling-project/docling/issues/2219)) ([`e5cd702`](https://github.com/docling-project/docling/commit/e5cd7020bd281aea63519db9a5332dd2dcca54b4))
+* Document VLM support requirement in extraction example ([#2231](https://github.com/docling-project/docling/issues/2231)) ([`55f5f37`](https://github.com/docling-project/docling/commit/55f5f3752f33f5b495cb2af5e6a3aee5d157fad8))
+
 ## [v2.51.0](https://github.com/docling-project/docling/releases/tag/v2.51.0) - 2025-09-05
 
 ### Feature

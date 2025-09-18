@@ -31,9 +31,9 @@ You can additionally use Docling directly from your terminal, for instance:
 docling https://arxiv.org/pdf/2206.01062
 ```
 
-The CLI provides various options, such as 🥚[SmolDocling](https://huggingface.co/ds4sd/SmolDocling-256M-preview) (incl. MLX acceleration) & other VLMs:
+The CLI provides various options, such as 🥚[GraniteDocling](https://huggingface.co/ibm-granite/granite-docling-258M) (incl. MLX acceleration) & other VLMs:
 ```bash
-docling --pipeline vlm --vlm-model smoldocling https://arxiv.org/pdf/2206.01062
+docling --pipeline vlm --vlm-model granite_docling https://arxiv.org/pdf/2206.01062
 ```
 
 For all available options, run `docling --help` or check the [CLI reference](../reference/cli.md).

@@ -36,7 +36,7 @@ Docling simplifies document processing, parsing diverse formats — including ad
 * 🔒 Local execution capabilities for sensitive data and air-gapped environments
 * 🤖 Plug-and-play [integrations][integrations] incl. LangChain, LlamaIndex, Crew AI & Haystack for agentic AI
 * 🔍 Extensive OCR support for scanned PDFs and images
-* 👓 Support of several Visual Language Models ([SmolDocling](https://huggingface.co/ds4sd/SmolDocling-256M-preview))
+* 👓 Support of several Visual Language Models ([GraniteDocling](https://huggingface.co/ibm-granite/granite-docling-258M))
 * 🎙️ Audio support with Automatic Speech Recognition (ASR) models
 * 🔌 Connect to any agent using the [MCP server](https://docling-project.github.io/docling/usage/mcp/)
 * 💻 Simple and convenient CLI
@@ -88,9 +88,9 @@ Docling has a built-in CLI to run conversions.
 docling https://arxiv.org/pdf/2206.01062
 ```
 
-You can also use 🥚[SmolDocling](https://huggingface.co/ds4sd/SmolDocling-256M-preview) and other VLMs via Docling CLI:
+You can also use 🥚[GraniteDocling](https://huggingface.co/ibm-granite/granite-docling-258M) and other VLMs via Docling CLI:
 ```bash
-docling --pipeline vlm --vlm-model smoldocling https://arxiv.org/pdf/2206.01062
+docling --pipeline vlm --vlm-model granite_docling https://arxiv.org/pdf/2206.01062
 ```
 This will use MLX acceleration on supported Apple Silicon hardware.
 
