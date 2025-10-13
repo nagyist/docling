@@ -1,4 +1,3 @@
-# threaded_standard_pdf_pipeline.py
 """Thread-safe, production-ready PDF pipeline
 ================================================
 A self-contained, thread-safe PDF conversion pipeline exploiting parallelism between pipeline stages and models.
@@ -33,8 +32,10 @@ from docling.backend.abstract_backend import AbstractDocumentBackend
 from docling.backend.pdf_backend import PdfDocumentBackend
 from docling.datamodel.base_models import AssembledUnit, ConversionStatus, Page
 from docling.datamodel.document import ConversionResult
-from docling.datamodel.pipeline_options import ThreadedPdfPipelineOptions
-from docling.datamodel.settings import settings
+from docling.datamodel.pipeline_options import (
+    PdfPipelineOptions,
+    ThreadedPdfPipelineOptions,
+)
 from docling.models.code_formula_model import CodeFormulaModel, CodeFormulaModelOptions
 from docling.models.factories import get_ocr_factory
 from docling.models.layout_model import LayoutModel
@@ -47,7 +48,6 @@ from docling.models.readingorder_model import ReadingOrderModel, ReadingOrderOpt
 from docling.models.table_structure_model import TableStructureModel
 from docling.pipeline.base_pipeline import ConvertPipeline
 from docling.utils.profiling import ProfilingScope, TimeRecorder
-from docling.utils.utils import chunkify
 
 _log = logging.getLogger(__name__)
 
@@ -293,12 +293,12 @@ class RunContext:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class ThreadedStandardPdfPipeline(ConvertPipeline):
+class StandardPdfPipeline(ConvertPipeline):
     """High-performance PDF pipeline with multi-threaded stages."""
 
-    def __init__(self, pipeline_options: ThreadedPdfPipelineOptions) -> None:
+    def __init__(self, pipeline_options: PdfPipelineOptions) -> None:
         super().__init__(pipeline_options)
-        self.pipeline_options: ThreadedPdfPipelineOptions = pipeline_options
+        self.pipeline_options: PdfPipelineOptions = pipeline_options
         self._run_seq = itertools.count(1)  # deterministic, monotonic run ids
 
         # initialise heavy models once
