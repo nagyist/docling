@@ -1,3 +1,32 @@
+## [v2.56.1](https://github.com/docling-project/docling/releases/tag/v2.56.1) - 2025-10-13
+
+### Fix
+
+* Avoid downloading easyocr models by default ([#2454](https://github.com/docling-project/docling/issues/2454)) ([`688a7df`](https://github.com/docling-project/docling/commit/688a7dfd38ba3e3aea64f7fe027815e910818785))
+
+## [v2.56.0](https://github.com/docling-project/docling/releases/tag/v2.56.0) - 2025-10-13
+
+### Feature
+
+* AutoOCR model selecting the best OCR model available and deprecating the usage of EasyOCR ([#2391](https://github.com/docling-project/docling/issues/2391)) ([`f7244a4`](https://github.com/docling-project/docling/commit/f7244a433378327576e3554d41d80928ee38e2a7))
+* Add Tesseract PSM options support ([#2411](https://github.com/docling-project/docling/issues/2411)) ([`f11f8c0`](https://github.com/docling-project/docling/commit/f11f8c0a8188f99179acd7e47a48b908b1ea64d0))
+
+### Fix
+
+* **asr:** Implement robust status check in AsrPipeline ([#2442](https://github.com/docling-project/docling/issues/2442)) ([`db985bb`](https://github.com/docling-project/docling/commit/db985bb159173b56977db1228222592dcdbcb297))
+* Deal with chartsheets in workbooks ([#2433](https://github.com/docling-project/docling/issues/2433)) ([`cce18b2`](https://github.com/docling-project/docling/commit/cce18b2ff7f14ab0643364055a1ec8a77479a211))
+* Skip temporary docx files ([#2413](https://github.com/docling-project/docling/issues/2413)) ([`ee55013`](https://github.com/docling-project/docling/commit/ee5501320e003f45b7f4b9fdaaae69d481ec9ccc))
+* AsrPipeline to handle absolute paths and BytesIO streams correctly ([#2407](https://github.com/docling-project/docling/issues/2407)) ([`b5f7fef`](https://github.com/docling-project/docling/commit/b5f7fef29b4bbb51393a212041011ec5950aba28))
+* Enrichment of documents without pages metadata (pptx and xlsx) ([#2401](https://github.com/docling-project/docling/issues/2401)) ([`0610d01`](https://github.com/docling-project/docling/commit/0610d01afae6e3a1c88c85894be52503d7c873e4))
+* Proper heading support in rich tables for HTML backend ([#2394](https://github.com/docling-project/docling/issues/2394)) ([`9705f40`](https://github.com/docling-project/docling/commit/9705f4020c8e7f43cc5b0658c9641df24508502f))
+
+### Documentation
+
+* Remove deprecated call in custom_convert.py ([#2447](https://github.com/docling-project/docling/issues/2447)) ([`9020044`](https://github.com/docling-project/docling/commit/90200443bcd92ef52e1b1f5cc32a5ee9d85f74f2))
+* Fixed a few typos ([#2441](https://github.com/docling-project/docling/issues/2441)) ([`2a0f563`](https://github.com/docling-project/docling/commit/2a0f56390a1426d15d8330d3f3f36aeec464693c))
+* Add MongoDB + VoyageAI ([#2382](https://github.com/docling-project/docling/issues/2382)) ([`f2854b2`](https://github.com/docling-project/docling/commit/f2854b2e1d790c42b93f2925d42adb53d33fd01e))
+* Add RAG example with MongoDB Atlas Vector Search and VoyageAI embeddings ([#2341](https://github.com/docling-project/docling/issues/2341)) ([`8a4b946`](https://github.com/docling-project/docling/commit/8a4b946a1acf89b831a65c99503290b3ea957ec7))
+
 ## [v2.55.1](https://github.com/docling-project/docling/releases/tag/v2.55.1) - 2025-10-03
 
 ### Fix
