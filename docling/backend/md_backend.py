@@ -3,6 +3,7 @@ import re
 import warnings
 from copy import deepcopy
 from enum import Enum
+from html import unescape
 from io import BytesIO
 from pathlib import Path
 from typing import Literal, Optional, Union, cast
@@ -248,7 +249,10 @@ class MarkdownDocumentBackend(DeclarativeDocumentBackend):
 
         # Iterates over all elements in the AST
         # Check for different element types and process relevant details
-        if isinstance(element, marko.block.Heading) and len(element.children) > 0:
+        if (
+            isinstance(element, marko.block.Heading)
+            or isinstance(element, marko.block.SetextHeading)
+        ) and len(element.children) > 0:
             self._close_table(doc)
             _log.debug(
                 f" - Heading level {element.level}, content: {element.children[0].children}"  # type: ignore
@@ -321,9 +325,10 @@ class MarkdownDocumentBackend(DeclarativeDocumentBackend):
 
             fig_caption: Optional[TextItem] = None
             if element.title is not None and element.title != "":
+                title = unescape(element.title)
                 fig_caption = doc.add_text(
                     label=DocItemLabel.CAPTION,
-                    text=element.title,
+                    text=title,
                     formatting=formatting,
                     hyperlink=hyperlink,
                 )
@@ -351,6 +356,7 @@ class MarkdownDocumentBackend(DeclarativeDocumentBackend):
             snippet_text = (
                 element.children.strip() if isinstance(element.children, str) else ""
             )
+            snippet_text = unescape(snippet_text)
             # Detect start of the table:
             if "|" in snippet_text or self.in_table:
                 # most likely part of the markdown table

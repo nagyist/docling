@@ -48,14 +48,12 @@ class ApiVlmModel(BaseVlmPageModel):
         if not page_list:
             return
 
+        original_order = page_list[:]
         valid_pages = []
-        invalid_pages = []
 
         for page in page_list:
             assert page._backend is not None
-            if not page._backend.is_valid():
-                invalid_pages.append(page)
-            else:
+            if page._backend.is_valid():
                 valid_pages.append(page)
 
         # Process valid pages in batch
@@ -87,10 +85,8 @@ class ApiVlmModel(BaseVlmPageModel):
                     for page, prediction in zip(pages_with_images, predictions):
                         page.predictions.vlm_response = prediction
 
-        # Yield all pages (valid and invalid)
-        for page in invalid_pages:
-            yield page
-        for page in valid_pages:
+        # Yield pages preserving original order
+        for page in original_order:
             yield page
 
     def process_images(

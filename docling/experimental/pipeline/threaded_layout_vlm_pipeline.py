@@ -116,11 +116,9 @@ class ThreadedLayoutVlmPipeline(BasePipeline):
                         )
                         layout_injection = f"{layout_xml}"
 
-                        print(
-                            f"Layout injection prompt: {layout_injection}"
-                        )
+                        print(f"Layout injection prompt: {layout_injection}")
                         return layout_injection
-                        #return base_prompt + layout_injection
+                        # return base_prompt + layout_injection
 
                 return base_prompt
 

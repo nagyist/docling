@@ -22,6 +22,7 @@
 [![PyPI Downloads](https://static.pepy.tech/badge/docling/month)](https://pepy.tech/projects/docling)
 [![Docling Actor](https://apify.com/actor-badge?actor=vancura/docling?fpr=docling)](https://apify.com/vancura/docling)
 [![Chat with Dosu](https://dosu.dev/dosu-chat-badge.svg)](https://app.dosu.dev/097760a8-135e-4789-8234-90c8837d7f1c/ask?utm_source=github)
+[![Discord](https://img.shields.io/discord/1399788921306746971?color=6A7EC2&logo=discord&logoColor=ffffff)](https://docling.ai/discord)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10101/badge)](https://www.bestpractices.dev/projects/10101)
 [![LF AI & Data](https://img.shields.io/badge/LF%20AI%20%26%20Data-003778?logo=linuxfoundation&logoColor=fff&color=0094ff&labelColor=003778)](https://lfaidata.foundation/projects/)
 
@@ -29,7 +30,7 @@ Docling simplifies document processing, parsing diverse formats — including ad
 
 ## Features
 
-* 🗂️ Parsing of [multiple document formats][supported_formats] incl. PDF, DOCX, PPTX, XLSX, HTML, WAV, MP3, images (PNG, TIFF, JPEG, ...), and more
+* 🗂️ Parsing of [multiple document formats][supported_formats] incl. PDF, DOCX, PPTX, XLSX, HTML, WAV, MP3, VTT, images (PNG, TIFF, JPEG, ...), and more
 * 📑 Advanced PDF understanding incl. page layout, reading order, table structure, code, formulas, image classification, and more
 * 🧬 Unified, expressive [DoclingDocument][docling_document] representation format
 * ↪️ Various [export formats][supported_formats] and options, including Markdown, HTML, [DocTags](https://arxiv.org/abs/2503.11576) and lossless JSON
@@ -45,13 +46,13 @@ Docling simplifies document processing, parsing diverse formats — including ad
 * 📤 Structured [information extraction][extraction] \[🧪 beta\]
 * 📑 New layout model (**Heron**) by default, for faster PDF parsing
 * 🔌 [MCP server](https://docling-project.github.io/docling/usage/mcp/) for agentic applications
+* 💬 Parsing of Web Video Text Tracks (WebVTT) files
 
 ### Coming soon
 
 * 📝 Metadata extraction, including title, authors, references & language
 * 📝 Chart understanding (Barchart, Piechart, LinePlot, etc)
 * 📝 Complex chemistry understanding (Molecular structures)
-* 📝 Parsing of Web Video Text Tracks (WebVTT) files
 
 ## Installation
 
