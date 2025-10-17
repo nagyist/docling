@@ -23,7 +23,7 @@ import warnings
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Sequence, Tuple, cast
+from typing import Any, Callable, Iterable, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
 from docling_core.types.doc import DocItem, ImageRef, PictureItem, TableItem
@@ -32,10 +32,8 @@ from docling.backend.abstract_backend import AbstractDocumentBackend
 from docling.backend.pdf_backend import PdfDocumentBackend
 from docling.datamodel.base_models import AssembledUnit, ConversionStatus, Page
 from docling.datamodel.document import ConversionResult
-from docling.datamodel.pipeline_options import (
-    PdfPipelineOptions,
-    ThreadedPdfPipelineOptions,
-)
+from docling.datamodel.pipeline_options import ThreadedPdfPipelineOptions
+from docling.datamodel.settings import settings
 from docling.models.code_formula_model import CodeFormulaModel, CodeFormulaModelOptions
 from docling.models.factories import get_ocr_factory
 from docling.models.layout_model import LayoutModel
@@ -48,6 +46,7 @@ from docling.models.readingorder_model import ReadingOrderModel, ReadingOrderOpt
 from docling.models.table_structure_model import TableStructureModel
 from docling.pipeline.base_pipeline import ConvertPipeline
 from docling.utils.profiling import ProfilingScope, TimeRecorder
+from docling.utils.utils import chunkify
 
 _log = logging.getLogger(__name__)
 
@@ -173,6 +172,7 @@ class ThreadedPipelineStage:
         batch_size: int,
         batch_timeout: float,
         queue_max_size: int,
+        postprocess: Optional[Callable[[ThreadedItem], None]] = None,
     ) -> None:
         self.name = name
         self.model = model
@@ -182,6 +182,7 @@ class ThreadedPipelineStage:
         self._outputs: list[ThreadedQueue] = []
         self._thread: Optional[threading.Thread] = None
         self._running = False
+        self._postprocess = postprocess
 
     # ---------------------------------------------------------------- wiring
     def add_output_queue(self, q: ThreadedQueue) -> None:
@@ -274,9 +275,83 @@ class ThreadedPipelineStage:
     # -------------------------------------------------------------- _emit()
     def _emit(self, items: Iterable[ThreadedItem]) -> None:
         for item in items:
+            if self._postprocess is not None:
+                self._postprocess(item)
             for q in self._outputs:
                 if not q.put(item):
                     _log.error("Output queue closed while emitting from %s", self.name)
+
+
+class PreprocessThreadedStage(ThreadedPipelineStage):
+    """Pipeline stage that lazily loads PDF backends just-in-time."""
+
+    def __init__(
+        self,
+        *,
+        batch_timeout: float,
+        queue_max_size: int,
+        model: Any,
+    ) -> None:
+        super().__init__(
+            name="preprocess",
+            model=model,
+            batch_size=1,
+            batch_timeout=batch_timeout,
+            queue_max_size=queue_max_size,
+        )
+
+    def _process_batch(self, batch: Sequence[ThreadedItem]) -> list[ThreadedItem]:
+        groups: dict[int, list[ThreadedItem]] = defaultdict(list)
+        for itm in batch:
+            groups[itm.run_id].append(itm)
+
+        result: list[ThreadedItem] = []
+        for rid, items in groups.items():
+            good = [i for i in items if not i.is_failed]
+            if not good:
+                result.extend(items)
+                continue
+            try:
+                pages_with_payloads: list[tuple[ThreadedItem, Page]] = []
+                for it in good:
+                    page = it.payload
+                    if page is None:
+                        raise RuntimeError("Page payload is None")
+                    if page._backend is None:
+                        backend = it.conv_res.input._backend
+                        assert isinstance(backend, PdfDocumentBackend), (
+                            "Threaded pipeline only supports PdfDocumentBackend."
+                        )
+                        page_backend = backend.load_page(page.page_no)
+                        page._backend = page_backend
+                        if page_backend.is_valid():
+                            page.size = page_backend.get_size()
+                    pages_with_payloads.append((it, page))
+
+                pages = [payload for _, payload in pages_with_payloads]
+                processed_pages = list(
+                    self.model(good[0].conv_res, pages)  # type: ignore[arg-type]
+                )
+                if len(processed_pages) != len(pages):
+                    raise RuntimeError(
+                        "PagePreprocessingModel returned unexpected number of pages"
+                    )
+                for idx, processed_page in enumerate(processed_pages):
+                    result.append(
+                        ThreadedItem(
+                            payload=processed_page,
+                            run_id=rid,
+                            page_no=good[idx].page_no,
+                            conv_res=good[idx].conv_res,
+                        )
+                    )
+            except Exception as exc:
+                _log.error("Stage preprocess failed for run %d: %s", rid, exc)
+                for it in items:
+                    it.is_failed = True
+                    it.error = exc
+                result.extend(items)
+        return result
 
 
 @dataclass
@@ -296,9 +371,9 @@ class RunContext:
 class StandardPdfPipeline(ConvertPipeline):
     """High-performance PDF pipeline with multi-threaded stages."""
 
-    def __init__(self, pipeline_options: PdfPipelineOptions) -> None:
+    def __init__(self, pipeline_options: ThreadedPdfPipelineOptions) -> None:
         super().__init__(pipeline_options)
-        self.pipeline_options: PdfPipelineOptions = pipeline_options
+        self.pipeline_options: ThreadedPdfPipelineOptions = pipeline_options
         self._run_seq = itertools.count(1)  # deterministic, monotonic run ids
 
         # initialise heavy models once
@@ -372,18 +447,28 @@ class StandardPdfPipeline(ConvertPipeline):
             accelerator_options=self.pipeline_options.accelerator_options,
         )
 
+    def _release_page_resources(self, item: ThreadedItem) -> None:
+        page = item.payload
+        if page is None:
+            return
+        if not self.keep_images:
+            page._image_cache = {}
+        if not self.keep_backend and page._backend is not None:
+            page._backend.unload()
+            page._backend = None
+        if not self.pipeline_options.generate_parsed_pages:
+            page.parsed_page = None
+
     # ────────────────────────────────────────────────────────────────────────
     # Build - thread pipeline
     # ────────────────────────────────────────────────────────────────────────
 
     def _create_run_ctx(self) -> RunContext:
         opts = self.pipeline_options
-        preprocess = ThreadedPipelineStage(
-            name="preprocess",
-            model=self.preprocessing_model,
-            batch_size=1,
+        preprocess = PreprocessThreadedStage(
             batch_timeout=opts.batch_timeout_seconds,
             queue_max_size=opts.queue_max_size,
+            model=self.preprocessing_model,
         )
         ocr = ThreadedPipelineStage(
             name="ocr",
@@ -412,6 +497,7 @@ class StandardPdfPipeline(ConvertPipeline):
             batch_size=1,
             batch_timeout=opts.batch_timeout_seconds,
             queue_max_size=opts.queue_max_size,
+            postprocess=self._release_page_resources,
         )
 
         # wire stages
@@ -430,19 +516,15 @@ class StandardPdfPipeline(ConvertPipeline):
         """Stream-build the document while interleaving producer and consumer work."""
         run_id = next(self._run_seq)
         assert isinstance(conv_res.input._backend, PdfDocumentBackend)
-        backend = conv_res.input._backend
 
-        # preload & initialise pages -------------------------------------------------------------
+        # Collect page placeholders; backends are loaded lazily in preprocess stage
         start_page, end_page = conv_res.input.limits.page_range
         pages: list[Page] = []
         for i in range(conv_res.input.page_count):
             if start_page - 1 <= i <= end_page - 1:
                 page = Page(page_no=i)
-                page._backend = backend.load_page(i)
-                if page._backend and page._backend.is_valid():
-                    page.size = page._backend.get_size()
-                    conv_res.pages.append(page)
-                    pages.append(page)
+                conv_res.pages.append(page)
+                pages.append(page)
 
         if not pages:
             conv_res.status = ConversionStatus.FAILURE
